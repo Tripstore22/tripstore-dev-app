@@ -4965,6 +4965,7 @@ function adminLoadUser() {
 // Retry with a long per-attempt timeout (this call legitimately takes >15 s, so the EXEC-01 15 s abort
 // would kill good attempts), and on final failure show a banner that stays until the page is reloaded.
 const _INIT_RETRY_DELAYS_MS = [30000];                 // LOAD-01 interim (owner 17 Oct): ONE retry, after 30 s (was 3 retries after 2/5/10 s); fewer parallel 12 MB loads on Apps Script
+const _BUNDLE_ATTEMPT_TIMEOUT = 15000, _BUNDLE_RETRIES = 1;   // LOAD-01: bundle call only
 const _INIT_ATTEMPT_TIMEOUT = 30000;                 // per-attempt abort (ms)   // P0 STARTUP-PERCITY: was 90 s; Google loses about 1 in 3 replies (CC, 6 Oct)
 // ── P0 STARTUP-PERCITY BEGIN (APP-STARTUP-LOAD-P0-01 option 2) ─────────────────────────────────
 // CC's root-cause evidence (6 Oct): Google loses about 1 in 3 replies, so the startup download has to be
@@ -5119,32 +5120,50 @@ let _bundleOff_ = false;
 async function _ensureData_(cities, needTransport) {
     const need = [...new Set((cities || []).map(_cityKey_).filter(k => k && !_cityData_.loaded[k] && !_cityData_.inflight[k]))];
     if (!_bundleOff_ && needTransport && need.length && !_cityData_.all && !_transport_.loaded && !_transport_.inflight) {
-        let done = null;
+        let done = null, bundleFailed = null;
         const p = (async () => {
-            const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-            const timer = ctl ? setTimeout(() => ctl.abort(), _INIT_ATTEMPT_TIMEOUT) : null;
-            try {
-                const res = await fetch(API_URL + '?action=getData&part=bundle&cities=' + encodeURIComponent(need.join(',')),
-                                        ctl ? { signal: ctl.signal, _tsNoRetry: true } : { _tsNoRetry: true });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const d = JSON.parse(await res.text());
-                if (!d || d.error || d.bundle !== 1) { if (d && /unknown part/.test(String(d.error))) _bundleOff_ = true; throw new Error('bundle: ' + (d && d.error)); }
-                _mergeCityRows_('hotels', d.hotels);
-                _mergeCityRows_('sights', d.sights);
-                need.forEach(k => { _cityData_.loaded[k] = true; });
-                masterData.transfers = d.transfers || []; masterData.intercity = d.intercity || []; _transport_.loaded = true;
-                done = true;
-            } catch (e) {
-                console.warn('[BUNDLE] ' + (e && e.message) + ' — falling back to separate requests');
-            } finally {
-                if (timer) clearTimeout(timer);
-                need.forEach(k => { delete _cityData_.inflight[k]; });
-                _transport_.inflight = null;
+            // LOAD-01 (owner 19 Oct): the bundle call gets a 15 s attempt and ONE retry (Google stalls some calls for minutes; a fresh
+            // call is usually fast, and the server cache makes it cheap). Both attempts failed = the data-load banner, no slow fallback.
+            // Every attempt is timed into window._tsBundleLog so stalls are visible (also console.info).
+            const url = API_URL + '?action=getData&part=bundle&cities=' + encodeURIComponent(need.join(','));
+            window._tsBundleLog = window._tsBundleLog || [];
+            let lastErr = null;
+            for (let attempt = 0; attempt <= _BUNDLE_RETRIES; attempt++) {
+                const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const t0 = Date.now(), timer = ctl ? setTimeout(() => ctl.abort(), _BUNDLE_ATTEMPT_TIMEOUT) : null;
+                let outcome = 'ok';
+                try {
+                    const res = await fetch(url, ctl ? { signal: ctl.signal, _tsNoRetry: true } : { _tsNoRetry: true });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const d = JSON.parse(await res.text());
+                    if (!d || d.error || d.bundle !== 1) {
+                        if (d && /unknown part/.test(String(d.error))) { _bundleOff_ = true; outcome = 'old-server'; lastErr = null; break; }
+                        throw new Error('bundle: ' + (d && d.error));
+                    }
+                    _mergeCityRows_('hotels', d.hotels);
+                    _mergeCityRows_('sights', d.sights);
+                    need.forEach(k => { _cityData_.loaded[k] = true; });
+                    masterData.transfers = d.transfers || []; masterData.intercity = d.intercity || []; _transport_.loaded = true;
+                    done = true; lastErr = null;
+                    break;
+                } catch (e) {
+                    outcome = (ctl && ctl.signal.aborted) ? 'timeout' : 'error: ' + (e && e.message);
+                    lastErr = e;
+                } finally {
+                    if (timer) clearTimeout(timer);
+                    const ms = Date.now() - t0;
+                    window._tsBundleLog.push({ attempt: attempt + 1, ms: ms, outcome: outcome, cities: need.length });
+                    console.info('[BUNDLE] attempt ' + (attempt + 1) + ' ' + outcome + ' in ' + ms + ' ms');
+                }
             }
+            need.forEach(k => { delete _cityData_.inflight[k]; });
+            _transport_.inflight = null;
+            if (lastErr) { _showDataLoadBanner_(true); bundleFailed = lastErr; }
         })();
         need.forEach(k => { _cityData_.inflight[k] = p; });
         _transport_.inflight = p;
         await p;
+        if (bundleFailed) throw new Error('data bundle failed after retry: ' + (bundleFailed && bundleFailed.message));   // banner already shown
         if (done) return Promise.all([_ensureCityData_(cities), null]);   // other cities already in flight
     }
     await Promise.all([_ensureCityData_(cities), needTransport ? _ensureTransportData_() : null]);
