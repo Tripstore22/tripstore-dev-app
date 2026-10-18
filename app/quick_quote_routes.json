@@ -1,0 +1,1043 @@
+{
+ "fixture": false,
+ "generated_at": "2026-10-13 20:0x (sumit-1-a7, owner 19:44 corrections)",
+ "sources": {
+  "quoted": "popularity = archive past quotes (brain/CORPUS_CANONICAL_v2.4) + TripStore saved quotes, for the same set of cities (order ignored); 1 = curated route with no exact history"
+ },
+ "counts": {
+  "routes_total": 39,
+  "single_country_routes": 24,
+  "multi_country_routes": 15,
+  "countries_covered": 27
+ },
+ "note": "Owner 13 Oct 19:44: no single-city routes; proper names like LIVE; top 10 mixed across destinations. Nights editable in the builder.",
+ "routes": [
+  {
+   "id": 2,
+   "country": "Switzerland",
+   "country_code": "CH",
+   "name": "Swiss Alpine Classic",
+   "cities": [
+    {
+     "city": "Zurich",
+     "nights": 2
+    },
+    {
+     "city": "Lucerne",
+     "nights": 3
+    },
+    {
+     "city": "Interlaken",
+     "nights": 3
+    },
+    {
+     "city": "Montreux",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 29
+  },
+  {
+   "id": 3,
+   "country": "Switzerland",
+   "country_code": "CH",
+   "name": "Swiss Highlights",
+   "cities": [
+    {
+     "city": "Zurich",
+     "nights": 2
+    },
+    {
+     "city": "Lucerne",
+     "nights": 2
+    },
+    {
+     "city": "Interlaken",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 35
+  },
+  {
+   "id": 4,
+   "country": "Switzerland",
+   "country_code": "CH",
+   "name": "Switzerland Grand Circuit",
+   "cities": [
+    {
+     "city": "Zurich",
+     "nights": 2
+    },
+    {
+     "city": "Lucerne",
+     "nights": 3
+    },
+    {
+     "city": "Interlaken",
+     "nights": 3
+    },
+    {
+     "city": "Geneva",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 20
+  },
+  {
+   "id": 5,
+   "country": "Switzerland",
+   "country_code": "CH",
+   "name": "Swiss Lakes & Riviera",
+   "cities": [
+    {
+     "city": "Zurich",
+     "nights": 1
+    },
+    {
+     "city": "Interlaken",
+     "nights": 3
+    },
+    {
+     "city": "Montreux",
+     "nights": 2
+    },
+    {
+     "city": "Geneva",
+     "nights": 1
+    }
+   ],
+   "booked": null,
+   "quoted": 9
+  },
+  {
+   "id": 6,
+   "country": "Switzerland",
+   "country_code": "CH",
+   "name": "Swiss Mountains & Glaciers",
+   "cities": [
+    {
+     "city": "Zurich",
+     "nights": 2
+    },
+    {
+     "city": "Lucerne",
+     "nights": 2
+    },
+    {
+     "city": "Grindelwald",
+     "nights": 2
+    },
+    {
+     "city": "Geneva",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 8
+  },
+  {
+   "id": 7,
+   "country": "Italy",
+   "country_code": "IT",
+   "name": "Italian Classic",
+   "cities": [
+    {
+     "city": "Rome",
+     "nights": 3
+    },
+    {
+     "city": "Florence",
+     "nights": 3
+    },
+    {
+     "city": "Milan",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 22
+  },
+  {
+   "id": 8,
+   "country": "Italy",
+   "country_code": "IT",
+   "name": "Grand Tour of Italy",
+   "cities": [
+    {
+     "city": "Rome",
+     "nights": 3
+    },
+    {
+     "city": "Florence",
+     "nights": 2
+    },
+    {
+     "city": "Venice",
+     "nights": 2
+    },
+    {
+     "city": "Milan",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 26
+  },
+  {
+   "id": 9,
+   "country": "Italy",
+   "country_code": "IT",
+   "name": "Italy North to South",
+   "cities": [
+    {
+     "city": "Milan",
+     "nights": 2
+    },
+    {
+     "city": "Venice",
+     "nights": 2
+    },
+    {
+     "city": "Florence",
+     "nights": 2
+    },
+    {
+     "city": "Rome",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 26
+  },
+  {
+   "id": 10,
+   "country": "Italy",
+   "country_code": "IT",
+   "name": "Rome, Amalfi & Capri Coast",
+   "cities": [
+    {
+     "city": "Rome",
+     "nights": 3
+    },
+    {
+     "city": "Sorrento",
+     "nights": 3
+    },
+    {
+     "city": "Amalfi",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 18,
+   "country": "Scotland",
+   "country_code": "GB",
+   "name": "Scottish Highlands",
+   "cities": [
+    {
+     "city": "Edinburgh",
+     "nights": 3
+    },
+    {
+     "city": "Inverness",
+     "nights": 2
+    },
+    {
+     "city": "Isle of Skye",
+     "nights": 2
+    },
+    {
+     "city": "Glasgow",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 19,
+   "country": "Ireland",
+   "country_code": "IE",
+   "name": "Ireland Explorer",
+   "cities": [
+    {
+     "city": "Dublin",
+     "nights": 3
+    },
+    {
+     "city": "Galway",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 20,
+   "country": "Spain",
+   "country_code": "ES",
+   "name": "Spanish Highlights",
+   "cities": [
+    {
+     "city": "Madrid",
+     "nights": 3
+    },
+    {
+     "city": "Seville",
+     "nights": 2
+    },
+    {
+     "city": "Barcelona",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 21
+  },
+  {
+   "id": 21,
+   "country": "Spain",
+   "country_code": "ES",
+   "name": "Andalusia & Barcelona",
+   "cities": [
+    {
+     "city": "Barcelona",
+     "nights": 3
+    },
+    {
+     "city": "Granada",
+     "nights": 2
+    },
+    {
+     "city": "Seville",
+     "nights": 2
+    },
+    {
+     "city": "Malaga",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 23,
+   "country": "Portugal",
+   "country_code": "PT",
+   "name": "Portugal Discovery",
+   "cities": [
+    {
+     "city": "Lisbon",
+     "nights": 4
+    },
+    {
+     "city": "Porto",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 11
+  },
+  {
+   "id": 24,
+   "country": "Portugal",
+   "country_code": "PT",
+   "name": "Lisbon & the Algarve",
+   "cities": [
+    {
+     "city": "Lisbon",
+     "nights": 3
+    },
+    {
+     "city": "Albufeira",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 4
+  },
+  {
+   "id": 25,
+   "country": "Greece",
+   "country_code": "GR",
+   "name": "Greek Islands",
+   "cities": [
+    {
+     "city": "Athens",
+     "nights": 2
+    },
+    {
+     "city": "Santorini",
+     "nights": 3
+    },
+    {
+     "city": "Mykonos",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 17
+  },
+  {
+   "id": 27,
+   "country": "Austria",
+   "country_code": "AT",
+   "name": "Austrian Alps & Lakes",
+   "cities": [
+    {
+     "city": "Vienna",
+     "nights": 3
+    },
+    {
+     "city": "Hallstatt",
+     "nights": 1
+    },
+    {
+     "city": "Salzburg",
+     "nights": 2
+    },
+    {
+     "city": "Innsbruck",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 28,
+   "country": "Germany",
+   "country_code": "DE",
+   "name": "Germany Highlights",
+   "cities": [
+    {
+     "city": "Berlin",
+     "nights": 3
+    },
+    {
+     "city": "Munich",
+     "nights": 3
+    },
+    {
+     "city": "Frankfurt",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 31,
+   "country": "Poland",
+   "country_code": "PL",
+   "name": "Poland Highlights",
+   "cities": [
+    {
+     "city": "Warsaw",
+     "nights": 2
+    },
+    {
+     "city": "Krakow",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 33,
+   "country": "Finland",
+   "country_code": "FI",
+   "name": "Finnish Lapland",
+   "cities": [
+    {
+     "city": "Helsinki",
+     "nights": 2
+    },
+    {
+     "city": "Rovaniemi",
+     "nights": 4
+    }
+   ],
+   "booked": null,
+   "quoted": 12
+  },
+  {
+   "id": 35,
+   "country": "Norway",
+   "country_code": "NO",
+   "name": "Norway Fjords",
+   "cities": [
+    {
+     "city": "Oslo",
+     "nights": 3
+    },
+    {
+     "city": "Bergen",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 3
+  },
+  {
+   "id": 37,
+   "country": "Turkey",
+   "country_code": "TR",
+   "name": "Turkey Highlights",
+   "cities": [
+    {
+     "city": "Istanbul",
+     "nights": 3
+    },
+    {
+     "city": "Cappadocia",
+     "nights": 2
+    },
+    {
+     "city": "Antalya",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 20
+  },
+  {
+   "id": 38,
+   "country": "Australia",
+   "country_code": "AU",
+   "name": "Australia East Coast",
+   "cities": [
+    {
+     "city": "Sydney",
+     "nights": 4
+    },
+    {
+     "city": "Melbourne",
+     "nights": 3
+    },
+    {
+     "city": "Cairns",
+     "nights": 3
+    },
+    {
+     "city": "Gold Coast",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 18
+  },
+  {
+   "id": 39,
+   "country": "Australia",
+   "country_code": "AU",
+   "name": "Sydney & Melbourne",
+   "cities": [
+    {
+     "city": "Sydney",
+     "nights": 4
+    },
+    {
+     "city": "Melbourne",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 3
+  }
+ ],
+ "multi_country_routes": [
+  {
+   "id": 1001,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "France",
+     "country_code": "FR"
+    },
+    {
+     "country": "Netherlands",
+     "country_code": "NL"
+    }
+   ],
+   "name": "Paris & Amsterdam",
+   "cities": [
+    {
+     "city": "Paris",
+     "nights": 3
+    },
+    {
+     "city": "Amsterdam",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 44
+  },
+  {
+   "id": 1011,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Czech Republic",
+     "country_code": "CZ"
+    },
+    {
+     "country": "Austria",
+     "country_code": "AT"
+    },
+    {
+     "country": "Hungary",
+     "country_code": "HU"
+    }
+   ],
+   "name": "Imperial Capitals",
+   "cities": [
+    {
+     "city": "Prague",
+     "nights": 3
+    },
+    {
+     "city": "Vienna",
+     "nights": 3
+    },
+    {
+     "city": "Budapest",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 26
+  },
+  {
+   "id": 1012,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Netherlands",
+     "country_code": "NL"
+    },
+    {
+     "country": "France",
+     "country_code": "FR"
+    },
+    {
+     "country": "Italy",
+     "country_code": "IT"
+    }
+   ],
+   "name": "Western Europe Grand",
+   "cities": [
+    {
+     "city": "Amsterdam",
+     "nights": 3
+    },
+    {
+     "city": "Paris",
+     "nights": 3
+    },
+    {
+     "city": "Milan",
+     "nights": 2
+    },
+    {
+     "city": "Rome",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 16
+  },
+  {
+   "id": 1013,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "France",
+     "country_code": "FR"
+    },
+    {
+     "country": "Belgium",
+     "country_code": "BE"
+    },
+    {
+     "country": "Netherlands",
+     "country_code": "NL"
+    }
+   ],
+   "name": "Benelux & Paris",
+   "cities": [
+    {
+     "city": "Paris",
+     "nights": 3
+    },
+    {
+     "city": "Brussels",
+     "nights": 3
+    },
+    {
+     "city": "Amsterdam",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 28
+  },
+  {
+   "id": 1014,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "France",
+     "country_code": "FR"
+    },
+    {
+     "country": "Switzerland",
+     "country_code": "CH"
+    }
+   ],
+   "name": "Paris & Swiss Alps",
+   "cities": [
+    {
+     "city": "Paris",
+     "nights": 3
+    },
+    {
+     "city": "Zurich",
+     "nights": 2
+    },
+    {
+     "city": "Lucerne",
+     "nights": 2
+    },
+    {
+     "city": "Interlaken",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 13
+  },
+  {
+   "id": 1015,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Switzerland",
+     "country_code": "CH"
+    },
+    {
+     "country": "France",
+     "country_code": "FR"
+    }
+   ],
+   "name": "Swiss Alps & Paris",
+   "cities": [
+    {
+     "city": "Zurich",
+     "nights": 2
+    },
+    {
+     "city": "Lucerne",
+     "nights": 2
+    },
+    {
+     "city": "Interlaken",
+     "nights": 2
+    },
+    {
+     "city": "Paris",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 13
+  },
+  {
+   "id": 1016,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "England",
+     "country_code": "GB"
+    },
+    {
+     "country": "France",
+     "country_code": "FR"
+    }
+   ],
+   "name": "London & Paris",
+   "cities": [
+    {
+     "city": "London",
+     "nights": 4
+    },
+    {
+     "city": "Paris",
+     "nights": 4
+    }
+   ],
+   "booked": null,
+   "quoted": 4
+  },
+  {
+   "id": 1017,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "England",
+     "country_code": "GB"
+    },
+    {
+     "country": "Scotland",
+     "country_code": "GB"
+    }
+   ],
+   "name": "London & Edinburgh",
+   "cities": [
+    {
+     "city": "London",
+     "nights": 4
+    },
+    {
+     "city": "Edinburgh",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 13
+  },
+  {
+   "id": 1022,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Spain",
+     "country_code": "ES"
+    },
+    {
+     "country": "Portugal",
+     "country_code": "PT"
+    }
+   ],
+   "name": "Spain & Portugal",
+   "cities": [
+    {
+     "city": "Madrid",
+     "nights": 3
+    },
+    {
+     "city": "Lisbon",
+     "nights": 3
+    },
+    {
+     "city": "Porto",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 1026,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Germany",
+     "country_code": "DE"
+    },
+    {
+     "country": "Austria",
+     "country_code": "AT"
+    }
+   ],
+   "name": "Austria & Bavaria",
+   "cities": [
+    {
+     "city": "Munich",
+     "nights": 3
+    },
+    {
+     "city": "Salzburg",
+     "nights": 2
+    },
+    {
+     "city": "Vienna",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 6
+  },
+  {
+   "id": 1029,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Slovenia",
+     "country_code": "SI"
+    },
+    {
+     "country": "Croatia",
+     "country_code": "HR"
+    }
+   ],
+   "name": "Croatia & Slovenia Coast",
+   "cities": [
+    {
+     "city": "Ljubljana",
+     "nights": 2
+    },
+    {
+     "city": "Zagreb",
+     "nights": 2
+    },
+    {
+     "city": "Plitvice",
+     "nights": 1
+    },
+    {
+     "city": "Split",
+     "nights": 2
+    },
+    {
+     "city": "Dubrovnik",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 1030,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Austria",
+     "country_code": "AT"
+    },
+    {
+     "country": "Slovakia",
+     "country_code": "SK"
+    },
+    {
+     "country": "Hungary",
+     "country_code": "HU"
+    }
+   ],
+   "name": "Danube Capitals",
+   "cities": [
+    {
+     "city": "Vienna",
+     "nights": 3
+    },
+    {
+     "city": "Bratislava",
+     "nights": 1
+    },
+    {
+     "city": "Budapest",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 1032,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Finland",
+     "country_code": "FI"
+    },
+    {
+     "country": "Estonia",
+     "country_code": "EE"
+    }
+   ],
+   "name": "Helsinki & Tallinn",
+   "cities": [
+    {
+     "city": "Helsinki",
+     "nights": 2
+    },
+    {
+     "city": "Tallinn",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 1034,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Denmark",
+     "country_code": "DK"
+    },
+    {
+     "country": "Sweden",
+     "country_code": "SE"
+    },
+    {
+     "country": "Norway",
+     "country_code": "NO"
+    }
+   ],
+   "name": "Scandinavian Capitals",
+   "cities": [
+    {
+     "city": "Copenhagen",
+     "nights": 3
+    },
+    {
+     "city": "Stockholm",
+     "nights": 3
+    },
+    {
+     "city": "Oslo",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  },
+  {
+   "id": 1036,
+   "category": "multi_country",
+   "countries": [
+    {
+     "country": "Iceland",
+     "country_code": "IS"
+    },
+    {
+     "country": "Denmark",
+     "country_code": "DK"
+    }
+   ],
+   "name": "Iceland & Copenhagen",
+   "cities": [
+    {
+     "city": "Reykjavik",
+     "nights": 4
+    },
+    {
+     "city": "Copenhagen",
+     "nights": 3
+    }
+   ],
+   "booked": null,
+   "quoted": 1
+  }
+ ]
+}
