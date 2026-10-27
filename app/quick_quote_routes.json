@@ -5,12 +5,12 @@
   "quoted": "popularity = archive past quotes (brain/CORPUS_CANONICAL_v2.4) + TripStore saved quotes, for the same set of cities (order ignored); 1 = curated route with no exact history"
  },
  "counts": {
-  "routes_total": 39,
-  "single_country_routes": 24,
+  "routes_total": 40,
+  "single_country_routes": 25,
   "multi_country_routes": 15,
-  "countries_covered": 27
+  "countries_covered": 28
  },
- "note": "Owner 13 Oct 19:44: no single-city routes; proper names like LIVE; top 10 mixed across destinations. Nights editable in the builder.",
+ "note": "Owner 13 Oct 19:44: no single-city routes; proper names like LIVE; top 10 mixed across destinations. Nights editable in the builder. | 28 Oct (CC, owner ruling, DEV launch list only): NZ route 40 added = top archive NZ route Auckland>Rotorua>Queenstown>Christchurch (all 4 on the DEV launch list); quoted=1 = curated, order only.",
  "routes": [
   {
    "id": 2,
@@ -551,6 +551,32 @@
    ],
    "booked": null,
    "quoted": 3
+  },
+  {
+   "id": 40,
+   "country": "New Zealand",
+   "country_code": "NZ",
+   "name": "New Zealand North & South",
+   "cities": [
+    {
+     "city": "Auckland",
+     "nights": 2
+    },
+    {
+     "city": "Rotorua",
+     "nights": 2
+    },
+    {
+     "city": "Queenstown",
+     "nights": 3
+    },
+    {
+     "city": "Christchurch",
+     "nights": 2
+    }
+   ],
+   "booked": null,
+   "quoted": 1
   }
  ],
  "multi_country_routes": [

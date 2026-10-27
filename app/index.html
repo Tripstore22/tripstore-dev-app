@@ -4911,8 +4911,11 @@ function startNewQuote() {
     if (spCard) spCard.classList.add('hidden');
 
     // Re-render
+    if (typeof tsSdReset_ === 'function') tsSdReset_();   // SELF-DRIVE (#166): a new quote starts with no car, no built car params
     handlePaxChange();
     renderTables();
+    updatePaxHeader();   // the header's Name of Pax box follows the cleared input (it kept the last quote's name)
+    { const _t = document.getElementById('proposalTitleLine'); if (_t) _t.textContent = 'Luxury Europe & Beyond'; }   // the page's own default title
     updateAutoBuildBtn();
     showToast('Ready for a new quote');
 }
@@ -5328,7 +5331,7 @@ async function searchItinerary(query) {
         window._enhancerByCity = data.enhancerSnapshot || {};
         { const _cn = document.getElementById('clientNameInput'); if (_cn) _cn.value = data.clientName || ''; }   // CLIENT-NAME-01
         window._tsSdBuiltParams = data.selfDrive || null; window._tsSdResult = null; window._tsSdBroken = false; window._tsSdEngineOff = false; window._tsSdReopened = !!data.selfDrive;   // SELF-DRIVE (#166): save/reload comes next
-        tsSdWanted = data.selfDrive && data.selfDrive.carType ? { carType: data.selfDrive.carType } : null; tsSdSyncToggle_();
+        tsSdWanted = _sdWantedFrom_(data.selfDrive); tsSdSyncToggle_();   // car type, per-car types, late arrival as saved
         updatePaxHeader();
         const _cfg = getTravelConfigs();
         const _el  = document.getElementById('roomDisplay');
@@ -5364,6 +5367,71 @@ async function searchItinerary(query) {
 async function loadAndOpen(name) {
     switchAdminTab('itinerary');
     await searchItinerary(name);
+}
+
+// =============================================================
+// WON/LOST (#184, DEV first) — owner: "Won/Lost must save to Quote_Log Outcome, not the browser."
+// The My Itineraries dropdown saves through the server action setQuoteOutcome {quote_id, outcome} (Mihir, clasp-dev), by the
+// card's quote_id, never by name. The tiles and cards read the Outcome the server sends with each saved row (getSavedList).
+// Only while the server does not send an outcome yet (older backend) the old browser value (itin_status_<name>) is shown — one
+// release only. A saved itinerary with no quote_id cannot be tracked: the dropdown is disabled ("Save again to track Won/Lost").
+// A failed save puts the dropdown back and changes nothing else. Nothing is written to localStorage any more.
+// =============================================================
+const TS_OUTCOMES = ['pending', 'won', 'lost', 'cancelled'];
+const TS_OUTCOME_LABEL = { pending: 'Pending', won: 'Won', lost: 'Lost', cancelled: 'Cancelled' };   // = the Quote_Log Outcome dropdown
+const TS_NO_QID = 'Save again to track Won/Lost';
+const TS_NOT_LOGGED = 'Not in the quote log yet — Won/Lost can’t be tracked';
+// setQuoteOutcome refusals (Mihir, clasp-dev #14) in words a rep can act on; the code stays in brackets for support
+const TS_OUTCOME_ERR = {
+    not_found: 'this quote is not in the quote log yet', duplicate_quote_id: 'this quote id is in the quote log twice',
+    not_allowed: 'only the quote’s own agent or an admin can change it', forbidden: 'your login has expired — log in again',
+    busy: 'the sheet is busy — try again in a moment', bad_outcome: 'the server did not accept this status',
+    missing_quote_id: 'the quote id was missing', header_mismatch: 'the quote log could not be updated',
+    no_quote_log: 'the quote log could not be updated', no_audit_tab: 'the quote log could not be updated', audit_failed: 'the quote log could not be updated'
+};
+
+/** The saved row's quote_id (getSavedList), '' when the row has none. */
+function tsQuoteIdOf_(r) { return String((r && (r.quoteId || r.quote_id)) || '').trim(); }
+
+/** Why a card's status cannot be changed ('' = it can): no quote_id, or the server says the id is not on Quote_Log (outcome ''). */
+function tsOutcomeNote_(r) {
+    if (!tsQuoteIdOf_(r)) return TS_NO_QID;
+    return r && r.outcome === '' ? TS_NOT_LOGGED : '';
+}
+
+/** The status shown for a saved row: the server's Outcome; the old browser value only when the server sends no outcome field. */
+function tsOutcomeOf_(r) {
+    if (r && r.outcome != null) {
+        const s = String(r.outcome).trim().toLowerCase();
+        return TS_OUTCOMES.indexOf(s) >= 0 ? s : 'pending';
+    }
+    let v = null;
+    try { v = localStorage.getItem('itin_status_' + (r && r.paxName)); } catch (e) { v = null; }   // fallback, one release only
+    return TS_OUTCOMES.indexOf(v) >= 0 ? v : 'pending';
+}
+
+/** Save a status change to Quote_Log. true = saved; false = the dropdown is back to what it was and a message says why. */
+async function tsSaveOutcome_(sel, name, val) {
+    const card = sel.closest ? sel.closest('.mi-card') : null;
+    const prev = (card && card.dataset && card.dataset.status) || 'pending';
+    const qid = (sel.dataset && sel.dataset.qid) || '';
+    const back = msg => { sel.value = prev; showToast(msg, 'error'); return false; };
+    if (TS_OUTCOMES.indexOf(val) < 0) return back('Unknown status — nothing saved.');
+    if (!qid) return back(TS_NO_QID + '.');
+    sel.disabled = true;
+    let j = null;
+    try {
+        const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'setQuoteOutcome', quote_id: qid, outcome: TS_OUTCOME_LABEL[val] }) });
+        j = await r.json();
+    } catch (e) { j = null; }
+    sel.disabled = false;
+    if (!(j && j.ok === true && String(j.outcome || '').trim().toLowerCase() === val)) {
+        const code = j && j.error ? String(j.error).replace(/[<>&"']/g, '').slice(0, 120) : '';
+        const why = !code ? (j ? 'the server did not confirm it' : 'no answer from the server')
+                  : TS_OUTCOME_ERR[code] ? TS_OUTCOME_ERR[code] + ' (' + code + ')' : code;
+        return back('Status not saved (' + why + '). Nothing changed — try again.');
+    }
+    return true;
 }
 
 function setItineraryStatus(sel, name, val) {
@@ -5454,7 +5522,7 @@ async function loadSavedList() {
     const _miEsc = v => String(v == null ? '' : v).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
     const _miDash = '<span class="mi-dash">—</span>';
     const _miCount = { pending: 0, won: 0, lost: 0 };
-    list.forEach(r => { const s = localStorage.getItem('itin_status_' + r.paxName) || 'pending'; if (s in _miCount) _miCount[s]++; });
+    list.forEach(r => { const s = tsOutcomeOf_(r); if (s in _miCount) _miCount[s]++; });   // WON/LOST (#184): Quote_Log Outcome
     const _miTime = r => { const t = r.savedAt ? Date.parse(r.savedAt) : NaN; return isNaN(t) ? -Infinity : t; };
     const _miRows = list.slice().sort((a, b) => _miTime(b) - _miTime(a));   // newest saves first; rows without a date last
 
@@ -5494,7 +5562,8 @@ async function loadSavedList() {
             const hasSpend  = r.actualSpend !== '' && r.actualSpend != null && Number(r.actualSpend) > 0;
             const aSpend    = hasSpend ? '₹'+Number(r.actualSpend).toLocaleString('en-IN') : '—';
             const cityList  = String(r.cities || '').split(',').map(c => c.trim()).filter(Boolean).join(' · ');
-            const itinStatus = localStorage.getItem('itin_status_' + r.paxName) || 'pending';
+            const itinStatus = tsOutcomeOf_(r);   // WON/LOST (#184): Quote_Log Outcome, not the browser
+            const _qid = tsQuoteIdOf_(r), _wlNote = tsOutcomeNote_(r);
             const label = { pending: 'Pending', won: 'Won', lost: 'Lost' };
             const arg = r.paxName.replace(/'/g,"\\'");
             return `<article class="mi-card" data-name="${_miEsc(r.paxName.toLowerCase())}" data-cities="${_miEsc(String(r.cities || '').toLowerCase())}" data-agent="${_miEsc(String(r.savedBy || '').toLowerCase())}" data-status="${_miEsc(itinStatus)}">
@@ -5507,11 +5576,12 @@ async function loadSavedList() {
               <div class="mi-budget"><span class="mi-flabel mi-budget-heading">Budget Overview</span>
                 <div class="mi-bgrid"><div><span class="mi-blabel">Hotel</span><span class="mi-bval">${hBudget}</span></div><div><span class="mi-blabel">Land</span><span class="mi-bval">${sBudget}</span></div><div><span class="mi-blabel" title="Actual quoted grand total from Quote_Log (incl. markup &amp; GST). '—' = no billed/manual save logged yet.">Actual</span><span class="mi-bval${hasSpend ? ' actual' : ''}">${aSpend}</span></div></div></div>
               <div class="mi-status-cell"><span class="mi-flabel">Status</span>
-                <span class="mi-pill" data-status="${_miEsc(itinStatus)}"><select class="mi-status" onchange="_miSetStatus(this,'${arg}',this.value)" aria-label="Status">
+                <span class="mi-pill" data-status="${_miEsc(itinStatus)}"><select class="mi-status" data-qid="${_miEsc(_qid)}" ${_wlNote ? `disabled title="${_wlNote}"` : ''} onchange="_miSetStatus(this,'${arg}',this.value)" aria-label="Status">
                   <option value="pending" ${itinStatus==='pending'?'selected':''}>Pending</option>
                   <option value="won"     ${itinStatus==='won'?'selected':''}>Won</option>
                   <option value="lost"    ${itinStatus==='lost'?'selected':''}>Lost</option>
-                </select></span>
+                  ${itinStatus==='cancelled' ? '<option value="cancelled" selected>Cancelled</option>' : ''}
+                </select></span>${_wlNote ? `<span class="mi-qid-note" style="display:block;font-size:10px;color:var(--ink4);margin-top:2px;">${_wlNote}</span>` : ''}
                 <time class="mi-saved-date">${savedDate}</time></div>
               <div class="mi-actions" aria-label="Actions for ${_miEsc(base)}">
                 <button class="mi-act mi-act-primary" onclick="loadAndOpen('${arg}')">↗ Open</button><button class="mi-act" onclick="loadAndPDF('${arg}')">▧ PDF</button>
@@ -5526,8 +5596,8 @@ async function loadSavedList() {
 
 // Status change from a card: the same store + handler as before (setItineraryStatus), then the pill, the card,
 // the tiles and the filter follow. Colours come from data-status (design pill), not the inline background.
-function _miSetStatus(sel, name, val) {
-    setItineraryStatus(sel, name, val);
+async function _miSetStatus(sel, name, val) {
+    if (!(await tsSaveOutcome_(sel, name, val))) return;   // WON/LOST (#184): never the browser only
     sel.style.background = '';
     const pill = sel.closest('.mi-pill');
     if (pill) pill.dataset.status = val;
@@ -6097,7 +6167,8 @@ function sightVisibleForCity(s, cityLower) {
 const SWISS_PASS_MARKER = 'with swiss pass';
 
 // =============================================================
-// SELF-DRIVE (#166, DEV only) — contract v1.3 (clasp-dev selfdrive_handoff/selfdrive_contract_v1_3.json)
+// SELF-DRIVE (#166, DEV only) — contract v1.3 + v1.4 (clasp-dev selfdrive_handoff/selfdrive_contract_v1_4.json, PR #13:
+// carTypeByArea = a car type per NZ island / AU car, lateArrival = no car on the arrival day; both sent only when used)
 // Toggle (like Swiss Pass) → car-type pop-up → the quote is REBUILT through the engine with params.selfDrive {carType}.
 // The engine drops the trains/transfers the car replaces and returns response.selfDrive; this block only shows it,
 // adds the car's NET price to the total (markup/GST on top, like trains) and puts params.selfDrive into the billing
@@ -6114,17 +6185,59 @@ const TS_SD_CITIES = new Set(['auckland', 'rotorua', 'taupo', 'wellington', 'nap
   'milford sound', 'greymouth', 'hokitika', 'akaroa', 'invercargill', 'arrowtown', 'glenorchy', 'abel tasman', 'sydney', 'melbourne',
   'brisbane', 'gold coast', 'perth', 'adelaide', 'canberra', 'hobart', 'launceston', 'cairns', 'port douglas', 'townsville', 'darwin',
   'alice springs', 'broome', 'exmouth', 'karratha', 'port hedland', 'newman', 'kalgoorlie']);
-let tsSdWanted = null;          // { carType } the rep picked (toggle ON) — sent on the next build
+const TS_SD_NZ = new Set(['auckland', 'rotorua', 'taupo', 'wellington', 'napier', 'hamilton', 'tauranga', 'bay of islands', 'paihia',
+  'whangarei', 'waitomo', 'new plymouth', 'tongariro', 'whakatane', 'gisborne', 'coromandel', 'picton', 'nelson', 'blenheim', 'kaikoura',
+  'christchurch', 'queenstown', 'wanaka', 'franz josef', 'fox glacier', 'dunedin', 'lake tekapo', 'tekapo', 'mount cook', 'te anau',
+  'milford sound', 'greymouth', 'hokitika', 'akaroa', 'invercargill', 'arrowtown', 'glenorchy', 'abel tasman']);   // = SD_NZ_NORTH + SD_NZ_SOUTH
+let tsSdWanted = null;          // { carType, auto?, byArea?, late? } the rep picked (toggle ON) — sent on the next build
 window._tsSdBuiltParams = null; // params.selfDrive of the quote ON SCREEN (what the hash carries)
 window._tsSdResult = null;      // response.selfDrive of the quote on screen, validated
 
 function _sdEsc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function _sdTypeLabel_(t) { const r = TS_SD_TYPES_MAIN.concat(TS_SD_TYPES_MORE).find(x => x[0] === t); return r ? r[1] : String(t || '').replace(/_/g, ' '); }
-function _sdSuggest_(pax) { return pax >= 1 && pax <= 2 ? 'BIG_SUV' : (pax >= 3 && pax <= 7 ? 'VAN' : null); }   // = SelfDrive.gs _sdSuggestType_
+// Owner ruling 27 Oct (#168/#183): car size by travellers 1–2 Small SUV · 3–4 Big SUV · 5–7 Van · 8 or more = no self-drive (send the
+// trip to a consultant). The page follows this table even while the engine's own suggestion (SelfDrive.gs _sdSuggestType_) is older.
+const TS_SD_MAX_PAX = 7;
+function _sdSuggest_(pax) { return pax >= 1 && pax <= 2 ? 'SMALL_SUV' : pax >= 3 && pax <= 4 ? 'BIG_SUV' : pax >= 5 && pax <= TS_SD_MAX_PAX ? 'VAN' : null; }
+function _sdTooMany_() { return (Number(getTravelConfigs().totalPax) || 0) > TS_SD_MAX_PAX; }
+const TS_SD_TOO_MANY = '8 or more travellers: self-drive is not offered — send this trip to a consultant.';
 function _sdDate_(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); if (!m) return ''; return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }); }
 
-/** The request part: {selfDrive:{carType}} only when the toggle is ON with a car type; {} otherwise (spread into params). */
-function tsSdRequestParams_() { return tsSdWanted && tsSdWanted.carType ? { selfDrive: { carType: tsSdWanted.carType } } : {}; }
+// v1.4 (Sumit 27 Oct, engine = Mihir's clasp-dev #13): each car can have its own type. The engine's area for a car: NZ = its island
+// (NORTH / SOUTH), AU = the car's pick-up city as in the trip. carType stays the type for every car not listed.
+function _sdAreaKey_(sg) {
+    if (!sg) return '';
+    if (TS_SD_NZ.has(String(sg.fromCity || '').trim().toLowerCase())) { const i = String(sg.island || '').toUpperCase(); return i === 'NORTH' || i === 'SOUTH' ? i : ''; }
+    return String(sg.fromCity || '').trim();
+}
+function _sdAreaLabel_(k) { return k === 'NORTH' ? 'North Island' : k === 'SOUTH' ? 'South Island' : k; }
+
+/** params.selfDrive for what the rep picked: carType; carTypeByArea only when a car has its own type; lateArrival always as true/false
+ *  (owner 27 Oct: default ON, and the engine is asked to treat a missing value as ON — so OFF is sent as false, never left out). */
+function _sdParamsOf_(w) {
+    if (!w || !w.carType) return null;
+    const p = { carType: w.carType };
+    const keys = Object.keys(w.byArea || {}).sort();
+    if (keys.length) { p.carTypeByArea = {}; keys.forEach(k => { p.carTypeByArea[k] = w.byArea[k]; }); }
+    p.lateArrival = w.late === true;
+    return p;
+}
+/** The reverse: what the card shows for a quote built (or saved) with these params. */
+function _sdWantedFrom_(p) {
+    if (!p || !p.carType) return null;
+    const w = { carType: String(p.carType) };
+    if (p.carTypeByArea && typeof p.carTypeByArea === 'object' && Object.keys(p.carTypeByArea).length) w.byArea = Object.assign({}, p.carTypeByArea);
+    if (p.lateArrival === true) w.late = true;
+    return w;
+}
+
+/** The request part: {selfDrive:{carType, carTypeByArea?, lateArrival}} only when the toggle is ON with a car type; {} otherwise (spread into params). */
+function tsSdRequestParams_() {
+    if (tsSdWanted && _sdTooMany_()) { tsSdWanted = null; tsSdSyncToggle_(); }   // party grew to 8+ after the car was picked: no car
+    if (tsSdWanted && tsSdWanted.auto) tsSdWanted.carType = _sdSuggest_(getTravelConfigs().totalPax) || tsSdWanted.carType;   // NZ default car follows the party size
+    const p = _sdParamsOf_(tsSdWanted);
+    return p ? { selfDrive: p } : {};
+}
 
 /** Validate response.selfDrive. Returns the block, or null when absent / broken (then the normal quote shows). */
 function tsSdValidate_(sd) {
@@ -6152,6 +6265,10 @@ function tsSdTakeResult_(data, params) {
     window._tsSdResult = window._tsSdBuiltParams ? tsSdValidate_(data && data.selfDrive) : null;
     window._tsSdBroken = !!(window._tsSdBuiltParams && data && data.selfDrive && !window._tsSdResult);
     if (window._tsSdResult && window._tsSdResult.suggestedCarType) window._tsSdSuggested = window._tsSdResult.suggestedCarType;
+    // v1.4 echoes carTypeByArea / lateArrival when it used them. No echo = an engine before clasp-dev #13: it priced every car with
+    // carType and started the car as usual, so say so instead of showing a car the rep did not ask for as if it were.
+    const r = window._tsSdResult;
+    window._tsSdOldEngine = !!(r && asked && ((asked.carTypeByArea && !r.carTypeByArea) || (asked.lateArrival && !r.lateArrival)));
 }
 
 /** NET INR of the cars on screen (0 when off / absent / broken). Markup + GST are applied on top in calculateBudgetInvestment. */
@@ -6165,28 +6282,62 @@ function tsSdNetInr_() {
 function tsCheckSelfDrive_() {
     const card = document.getElementById('selfDriveCard');
     if (!card) return;
-    const has = (selectedRoute || []).some(r => TS_SD_CITIES.has(String(r.city || '').toLowerCase().trim()));
+    const keys = (selectedRoute || []).map(r => String(r.city || '').toLowerCase().trim());
+    const has = keys.some(k => TS_SD_CITIES.has(k));
     card.classList.toggle('hidden', !has);
-    if (!has && tsSdWanted) { tsSdWanted = null; tsSdSyncToggle_(); }
+    if (!has) { if (tsSdWanted || window._tsSdUserOff) { tsSdWanted = null; window._tsSdUserOff = false; tsSdSyncToggle_(); } return; }
+    // Sumit 27 Oct: New Zealand = self-drive ON by default (about 95% of NZ clients drive); Australia = OFF until the rep turns it on;
+    // every other country = no card at all. Only while a NEW route is being made (no quote built yet), never on a reopened or built
+    // quote, and never again once the rep has switched it off for this route.
+    const nz = keys.some(k => TS_SD_NZ.has(k));
+    if (nz && !tsSdWanted && !window._tsSdUserOff && !(currentPlan && currentPlan.length) && !_sdTooMany_()) {
+        tsSdWanted = { carType: _sdSuggest_(getTravelConfigs().totalPax) || 'SMALL_SUV', auto: true, late: true };   // late arrival ON by default (owner 27 Oct)
+    }
+    tsSdSyncToggle_();
+}
+
+/** New Quote: no car state is carried into the next quote (toggle, built params, engine block, notes). */
+function tsSdReset_() {
+    tsSdWanted = null; window._tsSdBuiltParams = null; window._tsSdResult = null; window._tsSdBroken = false;
+    window._tsSdEngineOff = false; window._tsSdReopened = false; window._tsSdUserOff = false; window._tsSdOldEngine = false;
+    tsSdSyncToggle_();
+    try { tsRenderSelfDrive_(); } catch (e) { /* the tables are re-rendered by startNewQuote */ }
 }
 
 function tsSdSyncToggle_() {
     const t = document.getElementById('selfDriveToggle');
-    if (t) t.checked = !!tsSdWanted;
+    const many = !tsSdWanted && _sdTooMany_();
+    if (t) { t.checked = !!tsSdWanted; t.disabled = many; }
+    const sumEl = document.getElementById('selfDriveSummary');
+    if (many) { if (sumEl) sumEl.innerHTML = `<span style="color:#92400e;font-weight:600;">${_sdEsc_(TS_SD_TOO_MANY)}</span>`; return; }
     const sum = document.getElementById('selfDriveSummary');
+    const own = tsSdWanted && tsSdWanted.byArea ? Object.keys(tsSdWanted.byArea).sort().map(k => `<div>${_sdEsc_(_sdAreaLabel_(k))} car: <b>${_sdEsc_(_sdTypeLabel_(tsSdWanted.byArea[k]))}</b></div>`).join('') : '';
     if (sum) sum.innerHTML = tsSdWanted
-        ? `Car: <b>${_sdEsc_(_sdTypeLabel_(tsSdWanted.carType))}</b> · <a href="#" onclick="tsSdOpenPicker_();return false;" style="color:var(--terra);font-weight:700;">Change</a>`
+        ? `Car: <b>${_sdEsc_(_sdTypeLabel_(tsSdWanted.carType))}</b> · <a href="#" onclick="tsSdOpenPicker_();return false;" style="color:var(--terra);font-weight:700;">Change</a>${tsSdWanted.auto ? ' <span style="color:var(--ink4);">(on by default for New Zealand)</span>' : ''}${own}
+           <label style="display:flex;align-items:center;gap:4px;margin-top:4px;cursor:pointer;"><input type="checkbox" id="selfDriveLate" ${tsSdWanted.late ? 'checked' : ''} onchange="tsSdSetLate_(this.checked)" style="accent-color:var(--terra);">Late-night arrival — no car on the arrival day (taxi to the hotel, car next morning in the city)</label>`
         : '';
+}
+
+/** Late-night arrival tick-box (Sumit 27 Oct): the car starts the day after arrival; the arrival transfer stays. Rebuilds the quote. */
+function tsSdSetLate_(on) {
+    if (!tsSdWanted) return;
+    tsSdWanted = Object.assign({}, tsSdWanted);
+    if (on) tsSdWanted.late = true; else delete tsSdWanted.late;
+    tsSdSyncToggle_();
+    tsSdRebuild_();
 }
 
 /** Toggle handler (like toggleSwissPass): ON opens the car-type pop-up, OFF rebuilds without a car. */
 function toggleSelfDrive(enabled) {
-    if (enabled) { tsSdOpenPicker_(); return; }
-    tsSdWanted = null; tsSdSyncToggle_();
+    if (enabled && _sdTooMany_()) { tsSdWanted = null; tsSdSyncToggle_(); showToast(TS_SD_TOO_MANY, 'error'); return; }
+    if (enabled) { window._tsSdUserOff = false; tsSdOpenPicker_(); return; }
+    tsSdWanted = null; window._tsSdUserOff = true; tsSdSyncToggle_();   // stays off for this route (no NZ auto-on again)
     tsSdRebuild_();
 }
 
-function tsSdOpenPicker_() {
+/** Car-type pop-up. No argument = every car (sidebar); a car row's index = only that car (Yash 27 Oct: changing the Christchurch car
+ *  must not change the Rotorua car). */
+function tsSdOpenPicker_(segIdx) {
     let m = document.getElementById('selfDriveModal');
     if (!m) {
         m = document.createElement('div');
@@ -6195,13 +6346,22 @@ function tsSdOpenPicker_() {
         document.body.appendChild(m);
     }
     const pax = getTravelConfigs().totalPax;
-    const pre = (tsSdWanted && tsSdWanted.carType) || window._tsSdSuggested || _sdSuggest_(pax) || 'BIG_SUV';
+    const sd = window._tsSdResult;
+    const sg = segIdx != null && sd && tsSdWanted ? sd.segments[segIdx] : null;
+    const area = sg ? _sdAreaKey_(sg) : '';                       // '' = every car
+    window._tsSdPickArea = area;
+    const sugg = _sdSuggest_(pax) || window._tsSdSuggested;    // the owner's table first (27 Oct); the engine's only as a fallback
+    const base = (tsSdWanted && tsSdWanted.carType) || sugg || 'SMALL_SUV';
+    const pre = area ? ((tsSdWanted.byArea && tsSdWanted.byArea[area]) || sg.type || base) : base;
+    const head = area ? `🚗 Car ${_sdEsc_(sg.fromCity)} → ${_sdEsc_(sg.toCity)}` : '🚗 Self-drive car';
+    const sub = area ? 'Only this car changes; the other cars keep their type. The quote is rebuilt with the car.'
+                     : 'One car type for every car (NZ: one car per island). The quote is rebuilt with the car.' + (tsSdWanted && tsSdWanted.byArea ? ' Cars changed one by one take this type too.' : '');
     const opt = ([v, l]) => `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;cursor:pointer;font-size:13px;color:var(--ink);background:#fff;">
-        <input type="radio" name="sdCarType" value="${v}" ${v === pre ? 'checked' : ''} style="accent-color:var(--terra);">${_sdEsc_(l)}${v === (window._tsSdSuggested || _sdSuggest_(pax)) ? ' <span style="font-size:10px;color:var(--sage);font-weight:700;">suggested</span>' : ''}</label>`;
+        <input type="radio" name="sdCarType" value="${v}" ${v === pre ? 'checked' : ''} style="accent-color:var(--terra);">${_sdEsc_(l)}${v === sugg ? ' <span style="font-size:10px;color:var(--sage);font-weight:700;">suggested</span>' : ''}</label>`;
     const moreOpen = TS_SD_TYPES_MORE.some(x => x[0] === pre);
     m.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="sdTitle" style="background:var(--cream);border-radius:14px;max-width:380px;width:100%;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.3);">
-        <div id="sdTitle" style="font-family:'Playfair Display',Georgia,serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:4px;">🚗 Self-drive car</div>
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;">One car type for the whole trip (NZ: one car per island). The quote is rebuilt with the car.</div>
+        <div id="sdTitle" style="font-family:'Playfair Display',Georgia,serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:4px;">${head}</div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;">${sub}</div>
         <div style="display:grid;gap:6px;">${TS_SD_TYPES_MAIN.map(opt).join('')}</div>
         <details ${moreOpen ? 'open' : ''} style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--terra);">More</summary>
           <div style="display:grid;gap:6px;margin-top:6px;">${TS_SD_TYPES_MORE.map(opt).join('')}</div></details>
@@ -6215,29 +6375,152 @@ function tsSdOpenPicker_() {
 function tsSdClosePicker_(apply) {
     const m = document.getElementById('selfDriveModal');
     const pick = m && m.querySelector('input[name="sdCarType"]:checked');
+    const area = window._tsSdPickArea || ''; window._tsSdPickArea = '';
     if (m) m.style.display = 'none';
     if (!apply || !pick) { tsSdSyncToggle_(); return; }          // Cancel: back to what it was
-    tsSdWanted = { carType: pick.value }; tsSdSyncToggle_();
+    if (area && tsSdWanted && tsSdWanted.carType) {
+        tsSdWanted = Object.assign({}, tsSdWanted, { byArea: Object.assign({}, tsSdWanted.byArea || {}, { [area]: pick.value }) });   // only this car
+    } else {
+        // every car (per-car types replaced); late arrival kept as it was, ON when self-drive is switched on (owner 27 Oct default)
+        tsSdWanted = { carType: pick.value, late: tsSdWanted ? tsSdWanted.late === true : true };
+    }
+    window._tsSdUserOff = false; tsSdSyncToggle_();
     tsSdRebuild_();
 }
 
 /** The toggle REBUILDS the quote through the engine (not a client-side re-apply). No quote yet = applies on the next Auto-Build. */
 async function tsSdRebuild_() {
     if (!currentPlan || !currentPlan.length) { if (tsSdWanted) showToast('Self-drive set — it applies when you Auto-Build the quote', 'success'); return; }
+    // A build is already running (the Auto-Build button is disabled): wait for it, then rebuild ONCE. Two builds at the same time leave
+    // the button stuck on "Building…" — onAutoBuildQuote saves the button label at start, and the 2nd build saves "Building…" (Yash, 27 Oct).
+    const btn = document.getElementById('autoBuildBtn');
+    if (btn && btn.disabled) {
+        if (!window._tsSdQueued) {
+            window._tsSdQueued = true;
+            showToast('A build is running — the car change applies right after it', 'success');
+            const wait = setInterval(() => { if (!btn.disabled) { clearInterval(wait); window._tsSdQueued = false; tsSdRebuild_(); } }, 400);
+        }
+        return;
+    }
     await onAutoBuildQuote();
-    const built = window._tsSdBuiltParams ? window._tsSdBuiltParams.carType : null;
-    const want = tsSdWanted ? tsSdWanted.carType : null;
+    const built = JSON.stringify(window._tsSdBuiltParams || null);
+    const want = JSON.stringify(_sdParamsOf_(tsSdWanted));
     if (built !== want) {                                        // the build failed: the screen keeps the quote it had
-        tsSdWanted = built ? { carType: built } : null; tsSdSyncToggle_();
+        tsSdWanted = _sdWantedFrom_(window._tsSdBuiltParams); tsSdSyncToggle_();
         showToast('Self-drive change not applied — the quote on screen is unchanged', 'error');
     }
 }
 
-/** Draw the self-drive part of "03 Transfers & Car" (cars, crossings, warnings, not included, fallbacks). */
+// Sumit 21 Oct (via Yash): cars are rows of the "03" table (Date · From · To · Details · Cost · Action), no island labels;
+// the title says "Transfers & Self-Drive Cars" while cars are shown; the car rules + not-included list open "05 General Terms".
+// Warnings about THIS trip's plan stay on the car's row (they are not terms).
+const TS_SD_TRIP_WARNINGS = ['OVER_10H', 'JETLAG_DRIVE', 'DRIVE_TIME_UNVERIFIED', 'FERRY_NOT_POSSIBLE', 'LATE_ARRIVAL'];
+const TS_SD_PLATE_CODES = ['OVER_10H', 'DRIVE_TIME_UNVERIFIED'];   // Sumit 21 Oct: shown as drive plates (city → city · time), not as warning text
+const TS_SD_TITLE_ON = 'Transfers & Self-Drive Cars';
+
+// Drive times come only from the engine (its Drive_Pairs tab on the DEV sheet — owner ruling 21 Oct, CARD_22OCT_yash: drive pairs go
+// to the DEV sheet, data never in the page). A pair the engine has no time for shows "drive time not known".
+const _sdN_ = s => String(s == null ? '' : s).trim().toLowerCase();
+function _sdHours_(d) { return d && d.hours != null && Number.isFinite(Number(d.hours)) ? { h: Number(d.hours) } : null; }
+function _sdHoursText_(x) { return x ? x.h + ' h' : 'drive time not known'; }
+
+/** The car drive for a leg of the itinerary (from → to, preferring the same date), or null when no car drives it. */
+function tsSdDriveFor_(fromCity, toCity, dateIso) {
+    const sd = window._tsSdResult;
+    if (!sd) return null;
+    const f = _sdN_(fromCity), t = _sdN_(toCity);
+    let hit = null;
+    sd.segments.forEach(sg => (sg.driveDays || []).forEach(d => {
+        if (_sdN_(d.from) === f && _sdN_(d.to) === t && (!hit || (dateIso && String(d.date) === String(dateIso)))) hit = d;
+    }));
+    return hit ? { from: hit.from, to: hit.to, date: hit.date, time: _sdHours_(hit) } : null;
+}
+
+/** "🚗 Car with you today" (owner 27 Oct) on a day-wise itinerary day the client has a car but no drive plate (e.g. a Rotorua stay day). */
+function tsSdCarWithYou_(dayDate) {
+    const sd = window._tsSdResult;
+    if (!sd || !sd.segments.length || !dayDate) return '';
+    const dt = new Date(dayDate);
+    if (isNaN(dt)) return '';
+    const iso = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');   // the date the row shows (formatDate is local)
+    const car = sd.segments.some(sg => String(sg.pickupDate || '').slice(0, 10) <= iso && iso <= String(sg.dropDate || '').slice(0, 10));
+    const drives = sd.segments.some(sg => (sg.driveDays || []).some(d => String(d.date || '').slice(0, 10) === iso));
+    return car && !drives ? `<div class="sd-car-today" style="margin:2px 0 4px;font-size:12px;font-weight:600;color:#1f5f45;">🚗 Car with you today</div>` : '';
+}
+
+/** Drive plate in the train-card style: city → city and the time only. */
+function tsSdDrivePlate_(d) {
+    return `<div class="train-connector sd-drive" style="margin-top:4px;">
+                    <span style="font-size:15px;">🚗</span>
+                    <span style="font-size:12px;font-weight:600;color:var(--sky);">Drive ${_sdEsc_(d.from)} → ${_sdEsc_(d.to)} · ${_sdEsc_(_sdHoursText_(d.time))}</span>
+                </div>`;
+}
+
+function _sdSectionTitle_() {
+    const t = document.getElementById('transferTableBody');
+    const tbl = t && t.closest ? t.closest('table') : null;
+    const head = tbl ? tbl.previousElementSibling : null;
+    return head && head.querySelector ? head.querySelector('.ts-sec-title') : null;
+}
+
+/** Car rows for the transfers table (appended after the transfer rows renderTables has just written). */
+function tsSdCarRows_(sd) {
+    const inr = n => Math.round(Number(n) || 0).toLocaleString('en-IN');
+    const place = (p, city, pt) => _sdEsc_(p || (city + (pt ? ' ' + pt.toLowerCase() : '')));
+    return sd.segments.map((sg, i) => {
+        const c = sg.car || {};
+        const days = `${_sdEsc_(sg.days)} day${Number(sg.days) === 1 ? '' : 's'}`;
+        const parts = (sg.lines || []).map(l => `${_sdEsc_(l.label)} ₹${inr(l.amountInr)}`).join(' · ');
+        // Sumit 21 Oct: drive times (city → city · time) only in the day-wise itinerary, never in this row
+        const tripWarn = (sg.warnings || []).filter(w => TS_SD_TRIP_WARNINGS.indexOf(w.code) >= 0 && TS_SD_PLATE_CODES.indexOf(w.code) < 0).map(w => `<div style="color:#92400e;">⚠ ${_sdEsc_(w.text || w.code)}</div>`).join('');
+        return `
+            <tr class="sd-car-row">
+                <td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;">${_sdDate_(sg.pickupDate)} – ${_sdDate_(sg.dropDate)}</td>
+                <td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);">${place(sg.pickupPlace, sg.fromCity, sg.pickupPoint)}</td>
+                <td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);">${place(sg.dropPlace, sg.toCity, sg.dropPoint)}</td>
+                <td class="p-2 border" style="font-size:12px;color:var(--ink3);">
+                    <div style="font-weight:700;color:var(--ink);">🚗 ${_sdEsc_(c.model || _sdTypeLabel_(sg.type))}${c.seats ? ` · ${_sdEsc_(c.seats)} seats` : ''} · ${days}</div>
+                    ${parts ? `<div class="price-col no-print" style="font-size:11px;margin-top:2px;">${parts}</div>` : ''}${tripWarn ? `<div style="font-size:11px;margin-top:2px;">${tripWarn}</div>` : ''}
+                </td>
+                <td class="price-col no-print p-2 border" style="font-weight:700;color:var(--ink);">
+                    <div class="flex items-center justify-end whitespace-nowrap"><span style="font-size:12px;margin-right:2px;color:var(--terra);">₹</span><span style="font-size:13px;color:var(--terra);">${inr(sg.priceInr)}</span></div>
+                </td>
+                <td class="p-2 border text-center no-print" style="white-space:nowrap;">
+                    <button onclick="tsSdOpenPicker_(${i})" class="tbl-action-btn" title="Change this car's type — only this car (the quote is rebuilt)">Change</button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+/** "Self-Drive Car Terms" at the top of 05 General Terms: the car rules (each once) + what the car price does not include. */
+function tsSdTermsHtml_(sd) {
+    const seen = new Set(), rules = [];
+    sd.segments.forEach(sg => (sg.warnings || []).forEach(w => {
+        if (TS_SD_TRIP_WARNINGS.indexOf(w.code) >= 0) return;
+        const t = String(w.text || w.code || '').trim(); if (t && !seen.has(t)) { seen.add(t); rules.push(t); }
+    }));
+    const notInc = [];
+    sd.segments.forEach(sg => (sg.notIncluded || []).forEach(x => { if (notInc.indexOf(x) < 0) notInc.push(x); }));
+    if (!rules.length && !notInc.length) return '';
+    return `<p><strong>Self-Drive Car Terms:</strong></p>
+        <ul style="margin:-4px 0 6px 16px;list-style:disc;font-size:9px;line-height:1.6;color:var(--ink3);">${rules.map(r => `<li>${_sdEsc_(r)}</li>`).join('')}</ul>
+        ${notInc.length ? `<p><strong>Not included in the car price:</strong> ${notInc.map(_sdEsc_).join(' · ')}.</p>` : ''}`;
+}
+
+/** Draw self-drive: car rows in the 03 table + its title, crossings/fallbacks under the table, car terms at the top of 05. */
 function tsRenderSelfDrive_() {
     const box = document.getElementById('selfDriveBlock');
-    if (!box) return;
+    const tBody = document.getElementById('transferTableBody');
+    const title = _sdSectionTitle_();
+    const terms = document.querySelector ? document.querySelector('.terms-sec') : null;
+    let tbox = document.getElementById('selfDriveTerms');
+    if (!tbox && terms) { tbox = document.createElement('div'); tbox.id = 'selfDriveTerms'; tbox.style.marginBottom = '6px'; terms.insertBefore(tbox, terms.firstChild); }   // .terms-sec p:last-child drops the gap inside this block
     const sd = window._tsSdResult;
+    const cars = !!(sd && sd.segments.length);
+    if (title) { if (!title.dataset.sdOrig) title.dataset.sdOrig = title.textContent; title.textContent = cars ? TS_SD_TITLE_ON : title.dataset.sdOrig; }
+    if (tbox) tbox.innerHTML = cars ? tsSdTermsHtml_(sd) : '';
+    if (cars && tBody) tBody.insertAdjacentHTML('beforeend', tsSdCarRows_(sd));
+    if (!box) return;
     if (!sd) {
         // Built with a car but the block is missing/broken, or a saved self-drive quote reopened (save/reload comes next): say so quietly.
         const note = window._tsSdEngineOff ? 'Self-drive is not switched on in the engine right now — this quote has no car (trains/transfers as usual).'
@@ -6247,32 +6530,14 @@ function tsRenderSelfDrive_() {
         box.style.display = note ? 'block' : 'none';
         return;
     }
-    const inr = n => '₹' + Math.round(Number(n) || 0).toLocaleString('en-IN');
-    const place = (p, city, pt) => _sdEsc_(p || (city + (pt ? ' ' + pt.toLowerCase() : '')));
     let h = '';
-    sd.segments.forEach(sg => {
-        const c = sg.car || {};
-        const island = sg.island ? `<span class="city-tag" style="margin-right:6px;">${_sdEsc_(sg.island === 'NORTH' ? 'North Island' : sg.island === 'SOUTH' ? 'South Island' : sg.island)}</span>` : '';
-        const lines = (sg.lines || []).map(l => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;"><span>${_sdEsc_(l.label)}</span><span class="price-col no-print" style="font-weight:700;">${inr(l.amountInr)}</span></div>`).join('');
-        const warns = (sg.warnings || []).map(w => `<li>${_sdEsc_(w.text || w.code)}</li>`).join('');
-        const notInc = (sg.notIncluded || []).map(_sdEsc_).join(' · ');
-        h += `<div class="sd-car" style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin:8px 0;background:#fff;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-              <div style="font-size:13px;color:var(--ink);">${island}<b>🚗 ${_sdEsc_(c.model || _sdTypeLabel_(sg.type))}</b>${c.seats ? ` · ${_sdEsc_(c.seats)} seats` : ''} · ${_sdEsc_(sg.days)} day${Number(sg.days) === 1 ? '' : 's'}
-                <div style="font-size:12px;color:var(--ink3);margin-top:3px;">Pick-up ${place(sg.pickupPlace, sg.fromCity, sg.pickupPoint)} (${_sdDate_(sg.pickupDate)}) → drop ${place(sg.dropPlace, sg.toCity, sg.dropPoint)} (${_sdDate_(sg.dropDate)})</div></div>
-              <div class="price-col no-print" style="font-size:14px;font-weight:800;color:var(--terra);white-space:nowrap;">${inr(sg.priceInr)}</div>
-            </div>
-            <div style="margin-top:6px;border-top:1px dashed var(--border2);padding-top:6px;">${lines}</div>
-            ${warns ? `<ul style="margin:6px 0 0 16px;font-size:11px;color:#92400e;list-style:disc;">${warns}</ul>` : ''}
-            ${notInc ? `<div style="margin-top:6px;font-size:11px;color:var(--ink3);"><b>Not included:</b> ${notInc}</div>` : ''}
-          </div>`;
-    });
+    if (window._tsSdOldEngine) h += `<div class="sd-oldengine no-print" style="margin:6px 0 8px;padding:7px 10px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;font-size:12px;color:#92400e;">ⓘ The engine on DEV does not do a car type per car or late-night arrival yet — every car above uses the trip's car type and starts as usual.</div>`;
     (sd.crossings || []).forEach(x => {
         h += `<div class="sd-cross" style="margin:6px 0;padding:7px 10px;border-left:3px solid ${x.priced ? 'var(--sage)' : 'var(--terra)'};background:${x.priced ? 'var(--sage-bg)' : 'var(--terra-bg)'};border-radius:0 8px 8px 0;font-size:12px;color:var(--ink2);">
             ${x.mode === 'FERRY' ? '⛴️' : '✈️'} ${_sdEsc_(x.text || ((x.mode === 'FERRY' ? 'Ferry ' : 'Domestic flight ') + x.fromCity + ' → ' + x.toCity + ' — rep to add fare.'))}</div>`;
     });
     (sd.fallbacks || []).forEach(f => {
-        h += `<div class="sd-fallback" style="margin:6px 0;font-size:11px;color:var(--ink3);">ⓘ ${_sdEsc_((f.fromCity && f.toCity ? f.fromCity + ' → ' + f.toCity + ': ' : '') + (f.text || 'Self-drive not available — trains/transfers used.'))}</div>`;
+        h += `<div class="sd-fallback" style="margin:6px 0;padding:7px 10px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;font-size:12px;color:#92400e;">ⓘ ${_sdEsc_((f.fromCity && f.toCity ? f.fromCity + ' → ' + f.toCity + ': ' : '') + (f.text || 'Self-drive not available — trains/transfers used.'))}</div>`;
     });
     box.innerHTML = h;
     box.style.display = h ? 'block' : 'none';
@@ -7470,7 +7735,10 @@ function renderTables() {
                 const _nextCity = currentPlan[planIdx + 1].city;
                 // P0 missing leg: the shared TS_LEG_MATCH rule (same as the PDF), never a silent 'Travel from'
                 const _leg = tsLegFor_(item.city, _nextCity, (typeof selectedIntercity !== 'undefined' ? selectedIntercity : []), item.cout || null);
-                if (_leg) {
+                const _sdDrive = (typeof tsSdDriveFor_ === 'function') ? tsSdDriveFor_(item.city, _nextCity, item.cout || null) : null;   // SELF-DRIVE (#166)
+                if (_sdDrive) {
+                    bottomLines += tsSdDrivePlate_(_sdDrive);
+                } else if (_leg) {
                     bottomLines += `<div class="train-connector" style="margin-top:4px;">
                     <span style="font-size:15px;">🚆</span>
                     <span style="font-size:12px;font-weight:600;color:var(--sky);">Take a ${_leg.mode || 'train'} from ${item.city} to ${_nextCity}${_leg.notes ? ' · ' + _leg.notes : ''}</span>
@@ -7653,7 +7921,8 @@ function renderTables() {
                 ? _enhFooterHtml().replace('border-top:none;border-radius:0 0 8px 8px', 'border-radius:8px')
                 : '';
 
-            const actsMarkup = topLines + actsContent + _enhStandalone + noteAndAdd + bottomLines;
+            const _sdToday = (typeof tsSdCarWithYou_ === 'function') ? tsSdCarWithYou_(curDate) : '';   // SELF-DRIVE (#166)
+            const actsMarkup = topLines + _sdToday + actsContent + _enhStandalone + noteAndAdd + bottomLines;
 
             const _isSameDateAsPrevCheckout = isCheckinOtherCity
                 && formatDate(curDate) === formatDate(new Date(currentPlan[planIdx - 1].cout));
@@ -8216,6 +8485,7 @@ function tsMissingLegs_(plan, legs) {
 function tsMissingLegFlags_() {
     try {
         return tsMissingLegs_(currentPlan || [], (typeof selectedIntercity !== 'undefined' ? selectedIntercity : []))
+            .filter(function (m) { return !(typeof tsSdDriveFor_ === 'function' && tsSdDriveFor_(m.from, m.to, m.date)); })   // SELF-DRIVE (#166): driven legs
             .map(function (m) { return 'missing_leg: ' + m.from + ' → ' + m.to + ': not included — price manually'; });
     } catch (e) { return []; }
 }
@@ -8242,6 +8512,7 @@ function tsPriceMissingLeg(fromEnc, toEnc, date) {
 function tsConfirmMissingLegs_() {
     var m = [];
     try { m = tsMissingLegs_(currentPlan || [], (typeof selectedIntercity !== 'undefined' ? selectedIntercity : [])); } catch (e) { return true; }
+    if (typeof tsSdDriveFor_ === 'function') m = m.filter(function (x) { return !tsSdDriveFor_(x.from, x.to, x.date); });   // SELF-DRIVE (#166): driven legs
     if (!m.length) return true;
     return window.confirm(m.map(function (x) { return x.from + ' → ' + x.to; }).join(', ') + ' not included — send anyway?');
 }
@@ -10529,7 +10800,26 @@ function _updatePdfModal(text, sub) {
   var t = document.getElementById('_pdfModalText'); if (t && text) t.innerText = text;
   var s = document.getElementById('_pdfModalSub');  if (s && sub  !== undefined) s.innerText = sub;
 }
+// PDF-POPUP-01: the fallback when the browser blocked the tab — the modal becomes a Download button + Close.
+function _pdfShowLink_(url, started) {
+  var t = document.getElementById('_pdfModalText'); var s = document.getElementById('_pdfModalSub');
+  var ov = document.getElementById('_pdfModalOverlay'); var spin = ov && ov.querySelector('[style*="_pdfSpin"]');
+  if (spin) spin.style.display = 'none';
+  if (t) t.innerText = started ? 'Your PDF is downloading' : 'Your PDF is ready';
+  if (s) {
+    s.innerHTML = '';
+    var a = document.createElement('a');
+    a.id = '_pdfModalLink'; a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.innerText = 'Download PDF';
+    a.style.cssText = 'display:inline-block;margin-top:12px;padding:10px 22px;background:#b85c38;color:#fff;border-radius:8px;font:700 14px "Nunito Sans",system-ui,sans-serif;font-style:normal;text-decoration:none;';
+    a.onclick = function () { setTimeout(_hidePdfModal, 400); };
+    if (started) { var nt = document.createElement('div'); nt.innerText = 'Download not started? Click below.'; nt.style.cssText = 'font-style:normal;'; s.appendChild(nt); }
+    var x = document.createElement('div'); x.innerText = 'Close'; x.style.cssText = 'margin-top:12px;cursor:pointer;color:#9e9080;font-style:normal;';
+    x.onclick = _hidePdfModal;
+    s.appendChild(a); s.appendChild(x);
+  }
+}
 function _hidePdfModal() {
+  var _sp = document.querySelector('#_pdfModalOverlay [style*="_pdfSpin"]'); if (_sp) _sp.style.display = '';   // the spinner comes back for the next run
   var ov = document.getElementById('_pdfModalOverlay');
   if (ov) ov.style.display = 'none';
 }
@@ -10542,6 +10832,12 @@ function _hidePdfModal() {
 async function downloadAdobePDF(btnEl) {
   if (btnEl && btnEl.disabled) return;
   if (!tsConfirmMissingLegs_()) return;   // P0: one confirm click when legs are missing (never a block)
+  // PDF-POPUP-01 (owner 26 Oct, P0): a window.open() after the ~20 s save+generate is outside the click, so
+  // pop-up blockers drop it and the rep sees nothing (server log: 3 PDFs made, 50 s apart, none seen).
+  // Open the tab NOW, inside the click; point it at the file when ready. Blocked anyway -> a button in the modal.
+  var _pdfTab = null;
+  try { _pdfTab = window.open('', '_blank'); } catch (eTab) { _pdfTab = null; }
+  if (_pdfTab) { try { _pdfTab.document.write('<title>Preparing PDF…</title><p style="font:16px system-ui,sans-serif;color:#1c1812;padding:40px">Preparing your PDF… this takes about 20 seconds.</p>'); } catch (eW) {} }
   var paxName = (document.getElementById('paxNameInput') || {}).value || '';
   // [v19 LEGACY — pre-gen FAST PATH removed. Was: serve cached fileId from
   // window._pregenPdf if quoteId/paxName matched. No longer populated.]
@@ -10600,13 +10896,20 @@ async function downloadAdobePDF(btnEl) {
         throw new Error(human);
       }
       if (!data || !data.fileId) throw new Error('PDF generator returned no fileId');
-      _updatePdfModal('PDF ready — opening…', '');
       var directUrl = 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(data.fileId);
-      window.open(directUrl, '_blank');
-      setTimeout(_hidePdfModal, 800);
+      if (_pdfTab && !_pdfTab.closed) {
+        _pdfTab.location.href = directUrl;
+        // a started download leaves the tab blank (and unreadable): close it after 8 s — the download carries on —
+        // and keep a Download button up in case it never started (e.g. a Drive error page in that tab).
+        _updatePdfModal('PDF ready — downloading…', '');
+        setTimeout(function () { try { if (_pdfTab && !_pdfTab.closed) _pdfTab.close(); } catch (eB) {} _pdfShowLink_(directUrl, true); }, 8000);
+      } else {
+        _pdfShowLink_(directUrl);   // pop-up blocked (or the tab was closed): a real click on a link is never blocked
+      }
     });
   } catch (e) {
     console.error('[Adobe PDF]', e);
+    try { if (_pdfTab && !_pdfTab.closed) _pdfTab.close(); } catch (eC) {}
     _updatePdfModal('PDF generation failed', (e && e.message) || 'unknown error');
     setTimeout(_hidePdfModal, 2400);
     if (typeof showToast === 'function') {
@@ -10615,7 +10918,7 @@ async function downloadAdobePDF(btnEl) {
   } finally {
     // Save blocked / early-returned before deliverFn ran → no success/error timer will
     // fire, so close the "Saving quote…" modal here to avoid orphaning it.
-    if (!_delivered) _hidePdfModal();
+    if (!_delivered) { _hidePdfModal(); try { if (_pdfTab && !_pdfTab.closed) _pdfTab.close(); } catch (eC2) {} }
     if (btnEl) {
       btnEl.innerText = btnEl.dataset.origText || 'Download PDF';
       btnEl.disabled = false;
