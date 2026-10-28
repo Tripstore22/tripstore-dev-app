@@ -8507,11 +8507,23 @@ function _priceGapFlags_(plan, transfers, intercity, totalPax) {
         + ') — a ₹0 line is a missing price, not a free item. Price it manually before sending.');
     return flags;
 }
+// Item 3 (demo QA 28 Oct, owner #183 ruling "Late-night arrival default = ON (taxi to hotel, car next morning in city)"): when the self-drive
+// result says lateArrival, the arrival transfer is not a missing price: the client takes a taxi tonight and collects the car next morning.
+// PURE: (flags, plan, sdResult) -> flags. Only the ARRIVAL flag changes; departure and every non-self-drive quote are untouched.
+function _lateTaxiFlags_(flags, plan, sd) {
+    if (!sd || sd.lateArrival !== true || !Array.isArray(flags)) return flags;
+    var city = (plan && plan[0] && plan[0].city) || '';
+    return flags.map(function (f) {
+        return /^NO TRANSFER PRICED: arrival transfer/.test(f)
+            ? 'LATE-NIGHT ARRIVAL: taxi to your hotel in ' + (city || 'the first city') + ' tonight (not in the total); the car is collected in the city the next morning.'
+            : f;
+    });
+}
 function renderPriceGapBanner() {
     var bn = document.getElementById('priceGapBanner'), body = document.getElementById('priceGapBannerBody');
     if (!bn || !body) return;
     var cfg = (typeof getTravelConfigs === 'function') ? (getTravelConfigs() || {}) : {};
-    var flags = _priceGapFlags_(currentPlan, selectedTransfers, selectedIntercity, cfg.totalPax);
+    var flags = _lateTaxiFlags_(_priceGapFlags_(currentPlan, selectedTransfers, selectedIntercity, cfg.totalPax), currentPlan, window._tsSdResult);   // item 3 (28 Oct): late-night self-drive = taxi note
     if (!flags.length) { bn.style.display = 'none'; body.innerHTML = ''; return; }
     body.innerHTML = flags.map(function (f) {
         var i = f.indexOf(':');
