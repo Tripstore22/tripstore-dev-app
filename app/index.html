@@ -6422,7 +6422,7 @@ const TS_SD_TITLE_ON = 'Transfers & Self-Drive Cars';
 // to the DEV sheet, data never in the page). A pair the engine has no time for shows "drive time not known".
 const _sdN_ = s => String(s == null ? '' : s).trim().toLowerCase();
 function _sdHours_(d) { return d && d.hours != null && Number.isFinite(Number(d.hours)) ? { h: Number(d.hours) } : null; }
-function _sdHoursText_(x) { return x ? x.h + ' h' : 'drive time not known'; }
+function _sdHoursText_(x) { return x ? tsFmtDuration_(x.h) : 'drive time not known'; }   // #188 nearest 15 min
 
 /** The car drive for a leg of the itinerary (from → to, preferring the same date), or null when no car drives it. */
 function tsSdDriveFor_(fromCity, toCity, dateIso) {
@@ -6541,6 +6541,97 @@ function tsRenderSelfDrive_() {
     });
     box.innerHTML = h;
     box.style.display = h ? 'block' : 'none';
+}
+
+// ===== TS-DURATION-SHARED-BEGIN (#188, owner 28 Oct: every duration on screen AND in the PDF, one formatter; byte-identical in both) =====
+// Nearest 15 min: 1.3667 -> "1 hr 15 min", 0.25 -> "15 min", 2 -> "2 hr", 7.9 -> "8 hr". Reads hours (number) or the master/engine text
+// shapes ("2 hours", "1 hours 30 min", "3 hrs", "2.5 Hours", "45 min", "1.3666666666666667 hr", "2"). Anything else ("Half-Day") is shown as it is.
+function tsFmtDuration_(v) {
+  if (v === null || v === undefined) return '';
+  var raw = String(v).trim();
+  if (!raw) return '';
+  var h = null;
+  if (typeof v === 'number') {
+    h = v;
+  } else {
+    var mm = /^(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes)\.?$/i.exec(raw);
+    var hm = /^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)?\.?(?:\s*(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes)\.?)?$/i.exec(raw);
+    if (mm) h = Number(mm[1]) / 60;
+    else if (hm) h = Number(hm[1]) + (hm[2] ? Number(hm[2]) / 60 : 0);
+  }
+  if (h === null || !isFinite(h) || h <= 0) return raw;
+  var mins = Math.round(h * 60 / 15) * 15;
+  if (mins < 15) mins = 15;
+  var H = Math.floor(mins / 60), M = mins % 60;
+  return H && M ? H + ' hr ' + M + ' min' : (H ? H + ' hr' : M + ' min');
+}
+// ===== TS-DURATION-SHARED-END =====
+
+// =============================================================
+// CAR-DAY WORDING (#188 item 3, owner 28 Oct): on a day the client has a car, the day-wise itinerary says what the car does —
+// pick up / drive to / drop off — never "make your way … on your own" or a transfer. Late-night arrival (default ON) = taxi
+// tonight, car tomorrow morning in the city. Read only from the engine's self-drive block on screen (window._tsSdResult:
+// segments[].pickupDate/dropDate/pickupPlace/dropPlace/driveDays) and what the quote was built with (lateArrival).
+// No car on screen (self-drive off, Europe, engine block missing) = today's sentence, unchanged.
+// =============================================================
+function _cdEsc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function _cdN_(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
+function _cdIso_(d) {
+    const dt = d instanceof Date ? d : new Date(d);
+    if (isNaN(dt)) return '';
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');   // the date the row shows
+}
+function _cdPlace_(sg, end, city) {
+    const p = end === 'pick' ? sg.pickupPlace : sg.dropPlace;
+    if (p) return String(p);
+    const pt = String((end === 'pick' ? sg.pickupPoint : sg.dropPoint) || '');
+    return pt === 'Airport' ? city + ' airport' : city;
+}
+
+/** The sentence for a day-wise itinerary line. kind: 'first' (trip arrival), 'arrive' (check-in in a later city),
+ *  'leave' (check-out to the next city), 'last' (trip end). Returns HTML-safe text; dflt (today's sentence) when no car applies. */
+function tsCarDayText_(kind, city, nextCity, dayDate, dflt) {
+    const sd = window._tsSdResult;
+    if (!sd || !Array.isArray(sd.segments) || !sd.segments.length) return dflt;
+    const iso = _cdIso_(dayDate);
+    if (!iso) return dflt;
+    const d10 = x => String(x || '').slice(0, 10);
+    const c = _cdN_(city), n = _cdN_(nextCity);
+    const segs = sd.segments;
+    const pick = segs.find(sg => d10(sg.pickupDate) === iso && _cdN_(sg.fromCity) === c);
+    const drop = segs.find(sg => d10(sg.dropDate) === iso && _cdN_(sg.toCity) === c);
+    const drives = [].concat(...segs.map(sg => sg.driveDays || [])).filter(d => d10(d.date) === iso);
+    const driveTo = drives.find(d => _cdN_(d.to) === c);
+    const driveFrom = drives.find(d => _cdN_(d.from) === c && (!n || _cdN_(d.to) === n));
+    const withCar = segs.some(sg => d10(sg.pickupDate) <= iso && iso <= d10(sg.dropDate));
+    const E = _cdEsc_;
+    if (kind === 'first') {
+        if (pick) return `Pick up your car at ${E(_cdPlace_(pick, 'pick', city))} and drive to your hotel`;
+        const built = window._tsSdBuiltParams || {};
+        const next = new Date(dayDate instanceof Date ? dayDate.getTime() : dayDate); next.setDate(next.getDate() + 1);
+        if (built.lateArrival === true && segs.some(sg => d10(sg.pickupDate) === _cdIso_(next) && _cdN_(sg.fromCity) === c))
+            return 'Taxi to your hotel; collect your car in the city tomorrow morning';
+        return dflt;
+    }
+    if (kind === 'arrive') {
+        if (pick) return `Arrive in ${E(city)}, pick up your car at ${E(_cdPlace_(pick, 'pick', city))} and drive to your hotel`;
+        if (driveTo) return `Arrive in ${E(city)} by car and check in to your hotel`;
+        if (withCar) return `Arrive in ${E(city)} and check in to your hotel`;
+        return dflt;
+    }
+    if (kind === 'leave') {
+        if (driveFrom) {
+            const t = (typeof tsFmtDuration_ === 'function' && driveFrom.hours != null && isFinite(Number(driveFrom.hours))) ? tsFmtDuration_(Number(driveFrom.hours)) : '';
+            return `After breakfast check out and drive to ${E(nextCity || driveFrom.to)}${t ? ' (≈' + E(t) + ')' : ''}`;
+        }
+        if (drop) return `After breakfast check out and drop off your car at ${E(_cdPlace_(drop, 'drop', city))}`;
+        return dflt;
+    }
+    if (kind === 'last') {
+        if (drop) return `After breakfast check out and drop off your car at ${E(_cdPlace_(drop, 'drop', city))}, tour ends`;
+        return dflt;
+    }
+    return dflt;
 }
 
 function checkSwissPass() {
@@ -7724,13 +7815,13 @@ function renderTables() {
 
             let topLines = '', bottomLines = '';
             if (isFirstDayOfTrip) {
-                topLines += `<div class="day-note-arrive">Arrive at the airport, take a transfer to your hotel</div>`;
+                topLines += `<div class="day-note-arrive">${tsCarDayText_('first', item.city, null, curDate, 'Arrive at the airport, take a transfer to your hotel')}</div>`;   // #188 car-day wording
             }
             if (isCheckinOtherCity) {
-                topLines += `<div class="day-note-arrive">Arrive in the city and make your way to the hotel on your own</div>`;
+                topLines += `<div class="day-note-arrive">${tsCarDayText_('arrive', item.city, null, curDate, 'Arrive in the city and make your way to the hotel on your own')}</div>`;   // #188
             }
             if (isCheckoutToNext) {
-                bottomLines += `<div class="day-note-depart">After Breakfast check out and leave for your next city</div>`;
+                bottomLines += `<div class="day-note-depart">${tsCarDayText_('leave', item.city, currentPlan[planIdx + 1].city, curDate, 'After Breakfast check out and leave for your next city')}</div>`;   // #188
                 // Build train connector inline (same-day event, not a separate row)
                 const _nextCity = currentPlan[planIdx + 1].city;
                 // P0 missing leg: the shared TS_LEG_MATCH rule (same as the PDF), never a silent 'Travel from'
@@ -7753,7 +7844,7 @@ function renderTables() {
                 }
             }
             if (isLastDayOfTrip) {
-                bottomLines += `<div class="day-note-depart">After breakfast check out and transfer to the airport, tour ends</div>`;
+                bottomLines += `<div class="day-note-depart">${tsCarDayText_('last', item.city, null, curDate, 'After breakfast check out and transfer to the airport, tour ends')}</div>`;   // #188
             }
 
             const _catEmoji = c => {
@@ -7873,7 +7964,7 @@ function renderTables() {
                 const sTotal = Math.round(s.price * config.totalPax);
                 const sMiss  = _isPriceMissing_(s.price, s._swissPassPriced);   // BRIEF 2: ₹0 = MISSING
                 const cat    = s.category ? `<span class="act-cat">${s.category}</span>` : '';
-                const dur    = s.duration ? `<span class="act-dur">${s.duration}</span>` : '';
+                const dur    = s.duration ? `<span class="act-dur">${tsFmtDuration_(s.duration)}</span>` : '';   // #188 nearest 15 min
                 const icon   = `<span style="font-size:14px;flex-shrink:0;line-height:1;">${_catEmoji((s.category||'') + ' ' + (s.info||''))}</span>`;
                 const passBadge = (swissPassEnabled && isSwissPassTour(s.info))
                     ? `<span style="color:#2e7d32;font-size:11px;font-style:italic;font-weight:600;flex-shrink:0;"> · Swiss Pass</span>`
@@ -9624,7 +9715,7 @@ function _buildSightRow(s, routeId, nights, paxCount, highlight) {
     const price = Math.round(Number(s.price) * paxCount);
     const fmtP  = '\u20b9' + price.toLocaleString('en-IN');
     const catHtml = s.category ? '<span class="act-cat">' + s.category + '</span>' : '';
-    const durHtml = s.duration ? '<span class="act-dur">' + s.duration + '</span>' : '';
+    const durHtml = s.duration ? '<span class="act-dur">' + tsFmtDuration_(s.duration) + '</span>' : '';   // #188
     const bg = highlight
         ? 'background:#fff8f4;border-left:3px solid #b85c38;'
         : 'background:#faf7f2;border-left:3px solid transparent;';
@@ -9708,7 +9799,7 @@ function filterSightsInModal(routeId) {
         for (let i = 0; i < dayActs.length; i++) {
             const s = dayActs[i];
             const catH = s.category ? '<span class="act-cat">' + s.category + '</span>' : '';
-            const durH = s.duration ? '<span class="act-dur">' + s.duration + '</span>' : '';
+            const durH = s.duration ? '<span class="act-dur">' + tsFmtDuration_(s.duration) + '</span>' : '';   // #188
             dayRowsHtml += '<div style="display:flex;justify-content:space-between;align-items:center;background:#f3ede3;padding:7px 10px;border-radius:6px;border:1px solid rgba(184,92,56,.15);margin-bottom:5px;">'
                 + '<div style="flex:1;min-width:0;margin-right:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
                 + '<span style="font-size:9px;color:#b85c38;">&#9679;</span>'
@@ -9973,7 +10064,7 @@ function _buildAddRow(s, planIdx, dayIdx, paxCount, highlight) {
     const price = Math.round(Number(s.price) * paxCount);
     const fmtP  = '\u20b9' + price.toLocaleString('en-IN');
     const catH  = s.category ? '<span class="act-cat">' + s.category + '</span>' : '';
-    const durH  = s.duration ? '<span class="act-dur">' + s.duration + '</span>' : '';
+    const durH  = s.duration ? '<span class="act-dur">' + tsFmtDuration_(s.duration) + '</span>' : '';   // #188
     const bg    = highlight
         ? 'background:#fff8f4;border-left:3px solid #b85c38;'
         : 'background:#faf7f2;border-left:3px solid transparent;';
