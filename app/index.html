@@ -5332,6 +5332,10 @@ async function searchItinerary(query) {
         { const _cn = document.getElementById('clientNameInput'); if (_cn) _cn.value = data.clientName || ''; }   // CLIENT-NAME-01
         window._tsSdBuiltParams = data.selfDrive || null; window._tsSdResult = null; window._tsSdBroken = false; window._tsSdEngineOff = false; window._tsSdReopened = !!data.selfDrive;   // SELF-DRIVE (#166): save/reload comes next
         tsSdWanted = _sdWantedFrom_(data.selfDrive); tsSdSyncToggle_();   // car type, per-car types, late arrival as saved
+        // SD-LOAD-PDF (28 Oct): restore the saved car result (same validator as a fresh build) so the car, its price and the total come
+        // back on load; an older save without it keeps today's "Auto-Build again" note. Budget per person restored when saved.
+        if (data.selfDrive && data.selfDriveResult) { const _r = tsSdValidate_(data.selfDriveResult); if (_r) { window._tsSdResult = _r; window._tsSdReopened = false; } }
+        { const _b = document.getElementById('budgetPerPerson'); if (_b && Number(data.budgetPerPerson) > 0) _b.value = Number(data.budgetPerPerson); }
         updatePaxHeader();
         const _cfg = getTravelConfigs();
         const _el  = document.getElementById('roomDisplay');
@@ -10406,7 +10410,7 @@ async function computeFrontendHash(payload) {
     // computePayloadHash_ strips BOTH identically; the two hashes MUST stay in lockstep.
     const _src = payload || {};
     const _forHash = {};
-    Object.keys(_src).forEach(function(k){ if (k !== 'genId' && k !== 'grandTotal' && k !== 'enhancerSnapshot') _forHash[k] = _src[k]; });
+    Object.keys(_src).forEach(function(k){ if (k !== 'genId' && k !== 'grandTotal' && k !== 'enhancerSnapshot' && k !== 'selfDriveResult' && k !== 'budgetPerPerson') _forHash[k] = _src[k]; });
     const canonical = _canonicalJsonFE(_forHash);
     const buf = new TextEncoder().encode(canonical);
     const digest = await crypto.subtle.digest('SHA-256', buf);
@@ -10451,6 +10455,11 @@ function _buildCurrentPayload() {
         // selfDrive (#166, DEV): the params.selfDrive this quote was built with, ONLY when ON (hashed like the backend, which
         // hashes the whole payload). OFF = no key = today's payload and hash, byte for byte.
         ...(window._tsSdBuiltParams ? { selfDrive: window._tsSdBuiltParams } : {}),
+        // SD-LOAD-PDF (28 Oct): the engine's car result as built (so a reload shows the car + its price, and the PDF lists it) and the
+        // budget per person (so Auto-Build after a reload runs). BOTH are EXCLUDED from the billing hash here AND in computePayloadHash_
+        // (Code.gs) — byte-identical predicates — so they never re-bill an unchanged quote. Absent when there is no car / no budget.
+        ...(window._tsSdResult ? { selfDriveResult: window._tsSdResult } : {}),
+        ...((Number(document.getElementById('budgetPerPerson')?.value) || 0) > 0 ? { budgetPerPerson: Number(document.getElementById('budgetPerPerson').value) } : {}),
         selectedRoute, currentPlan, selectedTransfers, selectedIntercity
     };
 }
