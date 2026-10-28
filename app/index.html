@@ -5302,6 +5302,12 @@ async function searchItinerary(query) {
         const text = await res.text();
         if (text === "Not Found") return showToast("No record found", "error");
         const data = JSON.parse(text);
+        // SD-LEAK (P0 28 Oct): D (self-drive) then E opened in one page saved E with D's car + total. The old reset ran AFTER the
+        // _ensureData_ await, so an auto-save tick in that window wrote E's name + plan with D's car, total and budget. Now: suppress
+        // auto-save for the whole load, and clear every per-quote cache FIRST, before any field or await; then restore only what
+        // this payload carries (below).
+        window._tsLoadInProgress = true;
+        window._tsSdBuiltParams = null; window._tsSdResult = null; window._tsSdBroken = false; window._tsSdEngineOff = false; window._tsSdReopened = false; window._tsOptUpgrades = null; tsSdWanted = null; window._lastGrandTotal = null; { const _b0 = document.getElementById('budgetPerPerson'); if (_b0) _b0.value = ''; }
         document.getElementById('paxNameInput').value        = query;
         document.getElementById('adultCountInput').value     = data.adults   || data.paxCount || 2;
         document.getElementById('childCountInput').value     = data.children || 0;
@@ -5356,6 +5362,7 @@ async function searchItinerary(query) {
         renderRouteInputs();
         renderTables();
         _loadedFromName = query;   // ← mark as "opened from saved"
+        window._tsLoadInProgress = false;   // SD-LEAK: load finished, auto-save may run again
         // TRAP GUARD: window._lastGenId persists across the session. On loading a saved
         // quote (no fresh Auto-Build), reset it to THIS quote's own stored genId — or null
         // if it has none — so a re-save never inherits a stale build id from an earlier,
@@ -5366,7 +5373,7 @@ async function searchItinerary(query) {
         showToast(`Loaded: ${query}`);
         _waShowLastStatus(query);   // Phase 1: show this quote's last WhatsApp delivery status (async, never blocks the load)
     } catch (e) { showToast("Error loading itinerary", "error"); }
-    finally { btn.innerText = "LOAD"; }
+    finally { btn.innerText = "LOAD"; window._tsLoadInProgress = false; }
 }
 
 // Opens a saved itinerary into the builder tab and switches to it
@@ -10658,6 +10665,13 @@ async function _revertToSaved(paxName) {
     const text = await res.text();
     if (text === 'Not Found') throw new Error('Original quote not found on server');
     const original = JSON.parse(text);
+    window._tsLoadInProgress = true;   // SD-LEAK (28 Oct): same reset + restore as a load
+    try {
+    window._tsSdBuiltParams = null; window._tsSdResult = null; window._tsSdBroken = false; window._tsSdEngineOff = false; window._tsSdReopened = false; window._tsOptUpgrades = null; tsSdWanted = null; window._lastGrandTotal = null; { const _b0 = document.getElementById('budgetPerPerson'); if (_b0) _b0.value = ''; }
+    window._tsSdBuiltParams = original.selfDrive || null; tsSdWanted = _sdWantedFrom_(original.selfDrive); tsSdSyncToggle_();
+    if (original.selfDrive && original.selfDriveResult) { const _r = tsSdValidate_(original.selfDriveResult); if (_r) window._tsSdResult = _r; }
+    { const _b = document.getElementById('budgetPerPerson'); if (_b && Number(original.budgetPerPerson) > 0) _b.value = Number(original.budgetPerPerson); }
+    } finally { window._tsLoadInProgress = false; }
     selectedRoute     = original.selectedRoute     || [];
     currentPlan       = _normalizeLoadedPlanShape_(original.currentPlan       || [], original);
     selectedTransfers = original.selectedTransfers || [];
@@ -11428,6 +11442,7 @@ async function _autoSaveTick(force) {
   // writer that produced the duplicate. The quote is still marked dirty, so the next
   // tick after the billable save completes picks it up normally — nothing is lost.
   if (_billableSaveInFlight) { console.log('[autoSaveTick] suppressed — billable save in flight'); return; }
+  if (window._tsLoadInProgress) { console.log('[autoSaveTick] suppressed — a saved quote is loading'); return; }   // SD-LEAK (28 Oct)
   if (_autoSaveBackoff && !force) return;
   if (_autoSaveInFlight) return;
   if (!_autoSaveDirty)   return;
