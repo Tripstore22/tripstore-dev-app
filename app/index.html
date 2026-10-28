@@ -6613,6 +6613,8 @@ function tsCarDayText_(kind, city, nextCity, dayDate, dflt) {
     const E = _cdEsc_;
     if (kind === 'first') {
         if (pick) return `Pick up your car at ${E(_cdPlace_(pick, 'pick', city))} and drive to your hotel`;
+        const _ad = sd.arrivalDay;   // #188 / clasp-dev #16: late-night arrival, no car on day 1 (e.g. Auckland, car later)
+        if (_ad && _ad.text && d10(_ad.date) === iso && _cdN_(_ad.city) === c) return E(String(_ad.text));
         const built = window._tsSdBuiltParams || {};
         const next = new Date(dayDate instanceof Date ? dayDate.getTime() : dayDate); next.setDate(next.getDate() + 1);
         if (built.lateArrival === true && segs.some(sg => d10(sg.pickupDate) === _cdIso_(next) && _cdN_(sg.fromCity) === c))
@@ -6643,18 +6645,21 @@ function tsCarDayText_(kind, city, nextCity, dayDate, dflt) {
 // =============================================================
 // OPTIONAL UPGRADES (#189 item 3 / #188, owner 28 Oct): helicopter / scenic flight, VIP and private tours are never picked into a quote.
 // The engine (clasp-dev #15, DEV_PINNED @66) lists them in response.optionalUpgrades [{city, name, kind, priceInr, inTotal:false, more?}].
+// clasp-dev #16 adds self-drive extras to the same list: AIRPORT_TRANSFER (day-1 transfer / late-night taxi) and DAY_TRIP (long trips
+// better as a tour); a row with no rate in the book has priceInr null → shown as "Optional upgrade — price manually", never invented.
 // Shown under the day-wise itinerary as "Optional upgrade — ₹X", NOT in any total (nothing here touches the price maths).
 // Not saved and not hashed: a reopened quote shows them again after Auto-Build. No list = no block (today's page).
 // =============================================================
 window._tsOptUpgrades = null;
-const TS_UPG_KIND = { HELICOPTER_OR_FLIGHT: 'Helicopter / scenic flight', VIP: 'VIP', PRIVATE: 'Private tour' };
+const TS_UPG_KIND = { HELICOPTER_OR_FLIGHT: 'Helicopter / scenic flight', VIP: 'VIP', PRIVATE: 'Private tour', AIRPORT_TRANSFER: 'Airport transfer', DAY_TRIP: 'Day trip, better as a tour' };
+const _upPriced_ = u => Number.isFinite(Number(u.priceInr)) && Number(u.priceInr) > 0 && u.priceInr !== null && u.priceInr !== '';
 function _upEsc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
-/** After every Auto-Build: keep only well-formed rows that are outside the total. */
+/** After every Auto-Build: keep only well-formed rows that are outside the total — priced (> 0), or no rate at all (null = price manually). */
 function tsTakeUpgrades_(data) {
     const list = data && Array.isArray(data.optionalUpgrades) ? data.optionalUpgrades : [];
     window._tsOptUpgrades = list.filter(u => u && typeof u === 'object' && u.inTotal === false && String(u.name || '').trim()
-        && Number.isFinite(Number(u.priceInr)) && Number(u.priceInr) > 0);
+        && (_upPriced_(u) || u.priceInr === null || u.priceInr === undefined));
 }
 
 /** The block under the day-wise itinerary (created once, next to its table). */
@@ -6669,7 +6674,7 @@ function tsRenderUpgrades_() {
     const inr = n => Math.round(Number(n)).toLocaleString('en-IN');
     const rows = list.map(u => `<div class="opt-upg-row" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:4px 0;border-top:1px solid var(--border2);font-size:12px;color:var(--ink2);">
             <span><b>${_upEsc_(u.city)}</b> · ${_upEsc_(u.name)}${TS_UPG_KIND[u.kind] ? ` <span style="font-size:10px;color:var(--ink4);">(${_upEsc_(TS_UPG_KIND[u.kind])})</span>` : ''}${Number(u.more) > 0 ? ` <span style="font-size:10px;color:var(--ink4);">+${_upEsc_(Number(u.more))} more</span>` : ''}</span>
-            <span style="white-space:nowrap;font-weight:700;color:var(--terra);">Optional upgrade — ₹${inr(u.priceInr)}</span></div>`).join('');
+            <span style="white-space:nowrap;font-weight:700;color:var(--terra);">${_upPriced_(u) ? 'Optional upgrade — ₹' + inr(u.priceInr) : 'Optional upgrade — price manually'}</span></div>`).join('');
     box.innerHTML = `<div style="margin:10px 0;padding:10px 12px;border:1px dashed var(--border2);border-radius:8px;background:#fffdf8;">
         <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:4px;">Optional upgrades <span style="font-weight:600;color:var(--ink4);">— not in the total</span></div>${rows}</div>`;
     box.style.display = 'block';
