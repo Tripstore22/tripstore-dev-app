@@ -8597,13 +8597,31 @@ function _priceGapFlags_(plan, transfers, intercity, totalPax) {
 // result says lateArrival, the arrival transfer is not a missing price: the client takes a taxi tonight and collects the car next morning.
 // PURE: (flags, plan, sdResult) -> flags. Only the ARRIVAL flag changes; departure and every non-self-drive quote are untouched.
 function _lateTaxiFlags_(flags, plan, sd) {
-    if (!sd || sd.lateArrival !== true || !Array.isArray(flags)) return flags;
-    var city = (plan && plan[0] && plan[0].city) || '';
+    // #188 item 3 (Yash, 28 Oct, fit-dev test Auckland 2 · Rotorua 2 · Queenstown 3 · Christchurch 2): the price-gap lines follow the car on
+    // screen. (a) Late-night arrival: the car is collected "the next morning" only when the engine's first car starts on day 2 in the arrival
+    // city; otherwise the line gives the real pick-up date and city (big-city rule: an Auckland arrival collects the car when leaving Auckland).
+    // (b) A car picked up at the first city's airport on arrival day, or dropped at the last city's airport on departure day, replaces that
+    // airport transfer, so it is not a missing price. No car on screen = today's lines, unchanged.
+    if (!sd || !Array.isArray(flags) || !Array.isArray(sd.segments) || !sd.segments.length) return flags;
+    var first = (plan && plan[0]) || {}, last = (plan && plan.length && plan[plan.length - 1]) || {};
+    var city = first.city || '';
+    var N = function (s) { return String(s == null ? '' : s).trim().toLowerCase(); };
+    var D = function (s) { return String(s || '').slice(0, 10); };
+    var addDay = function (iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); if (!m) return ''; var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + 1)); return d.toISOString().slice(0, 10); };
+    var dayTxt = function (iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : ''; };
+    var segs = sd.segments.slice().sort(function (a, b) { return D(a.pickupDate) < D(b.pickupDate) ? -1 : D(a.pickupDate) > D(b.pickupDate) ? 1 : 0; });
+    var firstCar = (sd.arrivalDay && sd.arrivalDay.firstCarPickup && sd.arrivalDay.firstCarPickup.date)
+        ? { date: sd.arrivalDay.firstCarPickup.date, city: sd.arrivalDay.firstCarPickup.city } : { date: segs[0].pickupDate, city: segs[0].fromCity };
+    var pickAtStart = segs.some(function (g) { return N(g.fromCity) === N(first.city) && D(g.pickupDate) === D(first.cin) && String(g.pickupPoint) === 'Airport'; });
+    var dropAtEnd = segs.some(function (g) { return N(g.toCity) === N(last.city) && D(g.dropDate) === D(last.cout) && String(g.dropPoint) === 'Airport'; });
+    var nextMorning = D(firstCar.date) === addDay(first.cin) && N(firstCar.city) === N(city);
+    var lateLine = 'LATE-NIGHT ARRIVAL: taxi to your hotel in ' + (city || 'the first city') + ' tonight (not in the total); '
+        + (nextMorning ? 'the car is collected in the city the next morning.' : 'the car is collected on ' + dayTxt(firstCar.date) + ' in ' + (firstCar.city || city) + '.');
     return flags.map(function (f) {
-        return /^NO TRANSFER PRICED: arrival transfer/.test(f)
-            ? 'LATE-NIGHT ARRIVAL: taxi to your hotel in ' + (city || 'the first city') + ' tonight (not in the total); the car is collected in the city the next morning.'
-            : f;
-    });
+        if (/^NO TRANSFER PRICED: arrival transfer/.test(f)) return sd.lateArrival === true ? lateLine : (pickAtStart ? null : f);
+        if (/^NO TRANSFER PRICED: departure transfer/.test(f) && dropAtEnd) return null;
+        return f;
+    }).filter(function (f) { return f !== null; });
 }
 function renderPriceGapBanner() {
     var bn = document.getElementById('priceGapBanner'), body = document.getElementById('priceGapBannerBody');
