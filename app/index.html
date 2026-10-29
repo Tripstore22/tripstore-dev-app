@@ -5332,7 +5332,8 @@ async function searchItinerary(query) {
         selectedIntercity = data.selectedIntercity || [];
         try { await _ensureData_(_routeCities_(), true); }   // P0 STARTUP-PERCITY: before the saved quote is drawn
         catch (e) { showToast('Could not load hotels and tours for this quote — swaps may be empty; reload to retry', 'error'); }
-        try { showEngineWarnings(_tsMergeLegFlags_([])); } catch (e) {}   // P0: missing legs re-derived on reload
+        window._tsAddOns = (Array.isArray(data.addOns) && data.addOns.length) ? data.addOns : null;   // ADDON-RELOAD (R7): restore BEFORE the banner draws
+        try { showEngineWarnings(_tsMergeLegFlags_([]).concat(_tsAddOnFlags_(window._tsAddOns))); } catch (e) {}   // P0: missing legs re-derived on reload + saved add-ons
         // Restore the approved enhancer snapshot. Render is SNAPSHOT-driven, not
         // flag-driven: a quote saved with add-ons shows them again even if the enhancer
         // is later switched off. A pre-enhancer quote has no snapshot -> renders as today.
@@ -8711,7 +8712,7 @@ function _tsMergeLegFlags_(engineFlags) {
     return out;
 }
 function tsRefreshLegWarnings_() {
-    try { showEngineWarnings(_tsMergeLegFlags_(window._tsEngineFlags || [])); } catch (e) {}
+    try { showEngineWarnings(_tsMergeLegFlags_(window._tsEngineFlags || []).concat(_tsAddOnFlags_(window._tsAddOns))); } catch (e) {}   // ADDON-RELOAD (R7): keep add-on lines
 }
 // 'Price this leg' = the EXISTING manual train-row add (openAddTrainDirect -> confirmAddTrain), pre-filled.
 function tsPriceMissingLeg(fromEnc, toEnc, date) {
@@ -10689,6 +10690,8 @@ async function _revertToSaved(paxName) {
     try { await _ensureData_(_routeCities_(), true); }   // P0 STARTUP-PERCITY
     catch (e) { showToast('Could not load hotels and tours for this quote — swaps may be empty; reload to retry', 'error'); }
     window._enhancerByCity = original.enhancerSnapshot || {};
+    window._tsAddOns = (Array.isArray(original.addOns) && original.addOns.length) ? original.addOns : null;   // ADDON-RELOAD (R7): revert restores add-ons too
+    try { showEngineWarnings(_tsMergeLegFlags_([]).concat(_tsAddOnFlags_(window._tsAddOns))); } catch (e) {}   // + re-show the add-on banner
     if (typeof renderTables === 'function') renderTables();
 }
 
