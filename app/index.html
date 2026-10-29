@@ -5342,6 +5342,7 @@ async function searchItinerary(query) {
         tsSdWanted = _sdWantedFrom_(data.selfDrive); tsSdSyncToggle_();   // car type, per-car types, late arrival as saved
         // SD-LOAD-PDF (28 Oct): restore the saved car result (same validator as a fresh build) so the car, its price and the total come
         // back on load; an older save without it keeps today's "Auto-Build again" note. Budget per person restored when saved.
+        window._tsAddOns = (Array.isArray(data.addOns) && data.addOns.length) ? data.addOns : null;   // D-29-OWNER-2 #6: reload keeps the add-on for the PDF
         if (data.selfDrive && data.selfDriveResult) { const _r = tsSdValidate_(data.selfDriveResult); if (_r) { window._tsSdResult = _r; window._tsSdReopened = false; } }
         { const _b = document.getElementById('budgetPerPerson'); if (_b && Number(data.budgetPerPerson) > 0) _b.value = Number(data.budgetPerPerson); }
         updatePaxHeader();
@@ -8731,6 +8732,11 @@ function tsConfirmMissingLegs_() {
     return window.confirm(m.map(function (x) { return x.from + ' → ' + x.to; }).join(', ') + ' not included — send anyway?');
 }
 
+function _tsAddOnFlags_(L) {   // D-29-OWNER-2 #6: a must-do that did not fit -> priced add-on line in the existing warning banner (reuse, no new UI)
+    return (L || []).filter(function (a) { return a && Number(a.price) > 0; }).map(function (a) {
+        return 'addon: ' + (a.city ? a.city + ' — ' : '') + (a.option || a.item) + ' · ' + fmtINR(Math.round(Number(a.price))) + ' for the party · not in the total (' + (a.why || 'did not fit') + ')';
+    });
+}
 function showEngineWarnings(flags) {
     const bn   = document.getElementById('engineWarningBanner');
     const body = document.getElementById('engineWarningBannerBody');
@@ -8741,7 +8747,7 @@ function showEngineWarnings(flags) {
     if (!flags.length) { bn.style.display = 'none'; return; }
     const V2C_LABEL = { sim_note: 'Note', transfer_not_included: 'Transfer', flight_price_manually: 'Flight', transfer_price_manually: 'Transfer',
                         min_budget: 'Budget', over_budget: 'Budget', dropped: 'Dropped', top_picks: 'Free day', free_days_over_limit: 'Free days',
-                        narrower_quote: 'Narrower quote' };   // #27b ② fallback label
+                        narrower_quote: 'Narrower quote', addon: 'Priced add-on' };   // #27b ② fallback label
     body.innerHTML = flags.map(function(f) {
         const idx = f.indexOf(':');
         const raw = idx > 0 ? f.slice(0, idx) : 'warning';
@@ -9031,7 +9037,8 @@ function transformEngineResult(result, route, config) {
         intelligence: {},
         costSummary: result.costSummary || null,
         cascadeLog: result.cascadeLog || [],
-        warningFlags: result.warningFlags || []
+        warningFlags: result.warningFlags || [],
+        addOns: Array.isArray(result.addOns) ? result.addOns : []   // D-29-OWNER-2 #6 (RULEBOOK_ENFORCE ON only; absent = [])
     };
 }
 
@@ -9196,7 +9203,8 @@ async function onAutoBuildQuote() {
         }
 
         // Yellow warning banner
-        showEngineWarnings(_tsMergeLegFlags_(transformed.warningFlags));   // + derived missing legs (P0)
+        window._tsAddOns = (transformed.addOns && transformed.addOns.length) ? transformed.addOns : null;   // D-29-OWNER-2 #6: saved in the payload (hash-excluded) -> PDF
+        showEngineWarnings(_tsMergeLegFlags_(transformed.warningFlags).concat(_tsAddOnFlags_(window._tsAddOns)));   // + derived missing legs (P0) + priced add-ons
 
         // Cascade log to console (UI panel to follow)
         if (transformed.cascadeLog && transformed.cascadeLog.length) {
@@ -10517,7 +10525,7 @@ async function computeFrontendHash(payload) {
     // computePayloadHash_ strips BOTH identically; the two hashes MUST stay in lockstep.
     const _src = payload || {};
     const _forHash = {};
-    Object.keys(_src).forEach(function(k){ if (k !== 'genId' && k !== 'grandTotal' && k !== 'enhancerSnapshot' && k !== 'selfDriveResult' && k !== 'budgetPerPerson') _forHash[k] = _src[k]; });
+    Object.keys(_src).forEach(function(k){ if (k !== 'genId' && k !== 'grandTotal' && k !== 'enhancerSnapshot' && k !== 'selfDriveResult' && k !== 'budgetPerPerson' && k !== 'addOns') _forHash[k] = _src[k]; });   // addOns: lockstep with computePayloadHash_ (Code.gs)
     const canonical = _canonicalJsonFE(_forHash);
     const buf = new TextEncoder().encode(canonical);
     const digest = await crypto.subtle.digest('SHA-256', buf);
@@ -10566,6 +10574,8 @@ function _buildCurrentPayload() {
         // budget per person (so Auto-Build after a reload runs). BOTH are EXCLUDED from the billing hash here AND in computePayloadHash_
         // (Code.gs) — byte-identical predicates — so they never re-bill an unchanged quote. Absent when there is no car / no budget.
         ...(window._tsSdResult ? { selfDriveResult: window._tsSdResult } : {}),
+        // addOns (D-29-OWNER-2 #6): priced must-dos NOT in the total; EXCLUDED from the billing hash on BOTH sides. Absent when none.
+        ...(window._tsAddOns ? { addOns: window._tsAddOns } : {}),
         ...((Number(document.getElementById('budgetPerPerson')?.value) || 0) > 0 ? { budgetPerPerson: Number(document.getElementById('budgetPerPerson').value) } : {}),
         selectedRoute, currentPlan, selectedTransfers, selectedIntercity
     };
