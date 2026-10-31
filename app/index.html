@@ -6452,13 +6452,17 @@ function tsSdDriveFor_(fromCity, toCity, dateIso) {
 }
 
 /** "🚗 Car with you today" (owner 27 Oct) on a day-wise itinerary day the client has a car but no drive plate (e.g. a Rotorua stay day). */
-function tsSdCarWithYou_(dayDate) {
+function tsSdCarWithYou_(dayDate, city) {
     const sd = window._tsSdResult;
     if (!sd || !sd.segments.length || !dayDate) return '';
     const dt = new Date(dayDate);
     if (isNaN(dt)) return '';
     const iso = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');   // the date the row shows (formatDate is local)
-    const car = sd.segments.some(sg => String(sg.pickupDate || '').slice(0, 10) <= iso && iso <= String(sg.dropDate || '').slice(0, 10));
+    // #188 AU test 29 Oct: on the pick-up day the car is only with the client in the pick-up city, on the drop-off day only in the
+    // drop-off city (Brisbane 2 → Gold Coast 4: the Gold Coast car is not "with you" in Brisbane on 12 Jan). No city = date only.
+    const d10 = x => String(x || '').slice(0, 10), cN = x => String(x == null ? '' : x).trim().toLowerCase(), c = cN(city);
+    const car = sd.segments.some(sg => d10(sg.pickupDate) <= iso && iso <= d10(sg.dropDate)
+        && (!c || ((iso !== d10(sg.pickupDate) || cN(sg.fromCity) === c) && (iso !== d10(sg.dropDate) || cN(sg.toCity) === c))));
     const drives = sd.segments.some(sg => (sg.driveDays || []).some(d => String(d.date || '').slice(0, 10) === iso));
     return car && !drives ? `<div class="sd-car-today" style="margin:2px 0 4px;font-size:12px;font-weight:600;color:#1f5f45;">🚗 Car with you today</div>` : '';
 }
@@ -6645,6 +6649,9 @@ function tsCarDayText_(kind, city, nextCity, dayDate, dflt) {
         return dflt;
     }
     if (kind === 'last') {
+        // #188 AU test 29 Oct: a car dropped in the city still leaves the transfer to the airport (kept in section 03) — say so
+        const _airDrop = drop && (String(drop.dropPoint || '') === 'Airport' || /airport/i.test(String(drop.dropPlace || '')));
+        if (drop && !_airDrop) return `After breakfast check out, drop off your car at ${E(_cdPlace_(drop, 'drop', city))} and transfer to the airport, tour ends`;
         if (drop) return `After breakfast check out and drop off your car at ${E(_cdPlace_(drop, 'drop', city))}, tour ends`;
         return dflt;
     }
@@ -6667,8 +6674,36 @@ function _upEsc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
 /** After every Auto-Build: keep only well-formed rows that are outside the total — priced (> 0), or no rate at all (null = price manually). */
 function tsTakeUpgrades_(data) {
     const list = data && Array.isArray(data.optionalUpgrades) ? data.optionalUpgrades : [];
-    window._tsOptUpgrades = list.filter(u => u && typeof u === 'object' && u.inTotal === false && String(u.name || '').trim()
-        && (_upPriced_(u) || u.priceInr === null || u.priceInr === undefined));
+    window._tsOptUpgrades = tsDedupUpgrades_(list.filter(u => u && typeof u === 'object' && u.inTotal === false && String(u.name || '').trim()
+        && (_upPriced_(u) || u.priceInr === null || u.priceInr === undefined)));   // owner 29 Oct: one row per tour
+}
+
+/** Owner 29 Oct (AU test, Brisbane 2 → Gold Coast 4): the engine removes repeats only inside one city, so a tour the book lists under two
+ *  route cities showed twice ("Tamborine Rainforest Skywalk + Hop on Hop off Bus from Gold Coast" under Brisbane, "… from Brisbane" under
+ *  Gold Coast, both [amount]). Same name (case, accents, spaces and a trailing "from <listed city>" ignored) + same price → one row, the
+ *  first row's name, cities joined ("Brisbane / Gold Coast"). Never merged: a different price, a row
+ *  with no rate (price manually), an airport transfer. A dropped row's "+N more" moves to that city's last row shown. Copies only. */
+function tsDedupUpgrades_(list) {
+    const nm = s => String(s == null ? '' : s).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    // a trailing "from <city>" naming one of the listed cities is the same tour from another start ("… from Gold Coast" under Brisbane,
+    // "… from Brisbane" under Gold Coast, DEV 29 Oct): left out of the comparison only; the row keeps its own name
+    const cs = new Set((list || []).map(u => u && nm(u.city)).filter(Boolean));
+    const base = s => { const n = nm(s), m = n.match(/^(.*\S) from (.+)$/); return m && cs.has(m[2]) ? m[1] : n; };
+    const out = [], first = {}, moved = [];
+    (list || []).forEach(u => {
+        const row = Object.assign({}, u);
+        if (!_upPriced_(u) || u.kind === 'AIRPORT_TRANSFER') { out.push(row); return; }
+        const k = base(u.name) + '|' + Math.round(Number(u.priceInr)), f = first[k];
+        if (!f) { first[k] = row; out.push(row); return; }
+        const cities = String(f.city || '').split(' / ').filter(Boolean);
+        if (u.city && !cities.some(c => nm(c) === nm(u.city))) f.city = cities.concat(String(u.city)).join(' / ');
+        if (Number(u.more) > 0) moved.push({ city: u.city, more: Number(u.more), f: f });
+    });
+    moved.forEach(m => {   // after the loop: the city's last row shown may come later in the list
+        const same = out.filter(r => r !== m.f && nm(r.city) === nm(m.city)), to = same.length ? same[same.length - 1] : m.f;
+        to.more = (Number(to.more) > 0 ? Number(to.more) : 0) + m.more;
+    });
+    return out;
 }
 
 /** The block under the day-wise itinerary (created once, next to its table). */
@@ -8107,7 +8142,7 @@ function renderTables() {
                 ? _enhFooterHtml().replace('border-top:none;border-radius:0 0 8px 8px', 'border-radius:8px')
                 : '';
 
-            const _sdToday = (typeof tsSdCarWithYou_ === 'function') ? tsSdCarWithYou_(curDate) : '';   // SELF-DRIVE (#166)
+            const _sdToday = (typeof tsSdCarWithYou_ === 'function') ? tsSdCarWithYou_(curDate, item.city) : '';   // SELF-DRIVE (#166); city: #188 AU test 29 Oct
             const actsMarkup = topLines + _sdToday + actsContent + _enhStandalone + noteAndAdd + bottomLines;
 
             const _isSameDateAsPrevCheckout = isCheckinOtherCity
@@ -8442,6 +8477,7 @@ async function runAutoBuild() {
         selectedTransfers = data.selectedTransfers || [];
         selectedIntercity = data.selectedIntercity || [];
         window._enhancerByCity = data.enhancerSnapshot || {};   // clear stale add-ons
+        window._tsAddOns = null;   // ADDON-LEAK (R7): a previous quote's priced add-ons never ride into this plan's payload/PDF
 
         // Count total quotes behind the intelligence
         let totalQuotes = 0;
