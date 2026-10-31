@@ -6643,6 +6643,8 @@ function tsCarDayText_(kind, city, nextCity, dayDate, dflt) {
     if (kind === 'leave') {
         if (driveFrom) {
             const t = (typeof tsFmtDuration_ === 'function' && driveFrom.hours != null && isFinite(Number(driveFrom.hours))) ? tsFmtDuration_(Number(driveFrom.hours)) : '';
+            // AU + NZ test trips 31 Oct (NZ-A, NZ-C): the car is picked up in this city the morning the client leaves — say so
+            if (pick) return `After breakfast check out, pick up your car at ${E(_cdPlace_(pick, 'pick', city))} and drive to ${E(nextCity || driveFrom.to)}${t ? ' (≈' + E(t) + ')' : ''}`;
             return `After breakfast check out and drive to ${E(nextCity || driveFrom.to)}${t ? ' (≈' + E(t) + ')' : ''}`;
         }
         if (drop) return `After breakfast check out and drop off your car at ${E(_cdPlace_(drop, 'drop', city))}`;
@@ -6713,7 +6715,13 @@ function tsRenderUpgrades_() {
     if (!tbl || !tbl.parentNode) return;
     let box = document.getElementById('optionalUpgradesBlock');
     if (!box) { box = document.createElement('div'); box.id = 'optionalUpgradesBlock'; tbl.parentNode.insertBefore(box, tbl.nextSibling); }
-    const list = window._tsOptUpgrades || [];
+    // owner 1 Nov (D-01-NOV, unpriced legs): an optional extra with no price is dropped; its "+N more" stays on the city's last shown row
+    const list = [];
+    (window._tsOptUpgrades || []).forEach(u => {
+        if (_upPriced_(u)) { list.push(u); return; }
+        if (!(Number(u.more) > 0)) return;
+        for (let i = list.length - 1; i >= 0; i--) if (list[i].city === u.city) { list[i] = Object.assign({}, list[i], { more: (Number(list[i].more) || 0) + Number(u.more) }); break; }
+    });
     if (!list.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
     const inr = n => Math.round(Number(n)).toLocaleString('en-IN');
     const rows = list.map(u => `<div class="opt-upg-row" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:4px 0;border-top:1px solid var(--border2);font-size:12px;color:var(--ink2);">
