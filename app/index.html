@@ -4871,6 +4871,7 @@ function startNewQuote() {
     selectedRoute     = [];
     currentPlan       = [];
     selectedTransfers = [];
+    window._tsFxMissing = null;   // C4
     selectedIntercity = [];
     _loadedFromName   = null;
     window._lastQuoteId = null; // v18: new quote — drop captured quoteId
@@ -5122,7 +5123,7 @@ function _ensureTransportData_() {
     if (_cityData_.all || _transport_.loaded) return Promise.resolve();
     if (_transport_.inflight) return _transport_.inflight;
     _transport_.inflight = Promise.all([_getDataWithRetry_('&part=transfers', 'transfers'), _getDataWithRetry_('&part=intercity', 'intercity')])
-        .then(([t, ic]) => { masterData.transfers = t.transfers || []; masterData.intercity = ic.intercity || []; _transport_.loaded = true; })
+        .then(([t, ic]) => { masterData.transfers = t.transfers || []; masterData.intercity = ic.intercity || []; _transport_.loaded = true; _tsTransfersRetryNow_(); })
         .finally(() => { _transport_.inflight = null; });
     return _transport_.inflight;
 }
@@ -5160,7 +5161,7 @@ async function _ensureData_(cities, needTransport) {
                     _mergeCityRows_('hotels', d.hotels);
                     _mergeCityRows_('sights', d.sights);
                     need.forEach(k => { _cityData_.loaded[k] = true; });
-                    masterData.transfers = d.transfers || []; masterData.intercity = d.intercity || []; _transport_.loaded = true;
+                    masterData.transfers = d.transfers || []; masterData.intercity = d.intercity || []; _transport_.loaded = true; _tsTransfersRetryNow_();
                     done = true; lastErr = null;
                     break;
                 } catch (e) {
@@ -5275,6 +5276,7 @@ async function saveItinerary() {
     // no-op — the orchestrator already toasts on save success.
     const btn = document.getElementById('btnSave');
     if (!btn) return;
+    if (!tsConfirmMissingLegs_()) return;   // P1-ZERO-LINES: one confirm when a line is ₹0 / price on request (never a block)
     btn.innerText = "SAVING..."; btn.disabled = true;
     try {
         await processBillableAction('save', async () => {
@@ -5330,6 +5332,7 @@ async function searchItinerary(query) {
         currentPlan       = _normalizeLoadedPlanShape_(data.currentPlan      || [], data);
         selectedTransfers = data.selectedTransfers || [];
         selectedIntercity = data.selectedIntercity || [];
+        window._tsFxMissing = tsFxValid_(data.flightTransferMissing);   // C4: as saved (same hash on re-save)
         try { await _ensureData_(_routeCities_(), true); }   // P0 STARTUP-PERCITY: before the saved quote is drawn
         catch (e) { showToast('Could not load hotels and tours for this quote — swaps may be empty; reload to retry', 'error'); }
         window._tsAddOns = (Array.isArray(data.addOns) && data.addOns.length) ? data.addOns : null;   // ADDON-RELOAD (R7): restore BEFORE the banner draws
@@ -6097,7 +6100,7 @@ function renderRouteInputs() {
 function removeRoute(id) {
     selectedRoute = selectedRoute.filter(r => r.id !== id);
     renderRouteInputs();
-    currentPlan = []; selectedTransfers = []; selectedIntercity = [];
+    currentPlan = []; selectedTransfers = []; selectedIntercity = []; window._tsFxMissing = null;   // C4
     renderTables();
     const btn = document.getElementById('generateQuoteBtn');
     if (btn) btn.innerHTML = '▶ Generate Quote';
@@ -6627,11 +6630,11 @@ function tsCarDayText_(kind, city, nextCity, dayDate, dflt) {
     if (kind === 'first') {
         if (pick) return `Pick up your car at ${E(_cdPlace_(pick, 'pick', city))} and drive to your hotel`;
         const _ad = sd.arrivalDay;   // #188 / clasp-dev #16: late-night arrival, no car on day 1 (e.g. Auckland, car later)
-        if (_ad && _ad.text && d10(_ad.date) === iso && _cdN_(_ad.city) === c) return E(String(_ad.text));
+        if (_ad && _ad.text && d10(_ad.date) === iso && _cdN_(_ad.city) === c) return E(String(_ad.text)) + (_ad.note ? ' — ' + E(String(_ad.note)) : '');   // D-04NOV-SD-NOTIME: = the PDF
         const built = window._tsSdBuiltParams || {};
         const next = new Date(dayDate instanceof Date ? dayDate.getTime() : dayDate); next.setDate(next.getDate() + 1);
         if (built.lateArrival === true && segs.some(sg => d10(sg.pickupDate) === _cdIso_(next) && _cdN_(sg.fromCity) === c))
-            return 'Taxi to your hotel; collect your car in the city tomorrow morning';
+            return 'Taxi to your hotel; collect your car in the city tomorrow morning' + (sd.lateAssumedNote ? ' — ' + E(String(sd.lateAssumedNote)) : '');   // D-04NOV-SD-NOTIME
         return dflt;
     }
     if (kind === 'arrive') {
@@ -7189,7 +7192,7 @@ function runOptimizer(reoptimizeHotels = false, reoptimizeSights = false, skipRo
                       () => runOptimizer(reoptimizeHotels, reoptimizeSights, skipRouteId, skipDayIdx), false, true)) return;   // P0 STARTUP-PERCITY
     window._dedupLog = [];
     if (!selectedRoute || selectedRoute.length === 0) {
-        currentPlan = []; selectedTransfers = []; selectedIntercity = [];
+        currentPlan = []; selectedTransfers = []; selectedIntercity = []; window._tsFxMissing = null;   // C4
         renderTables();
         const _btn = document.getElementById('generateQuoteBtn');
         if (_btn) _btn.innerHTML = '▶ Generate Quote';
@@ -7679,8 +7682,21 @@ function _buildTransferDetailsText(from, to, vehicleLabel) {
 }
 
 // --- TRANSFER OPTIMIZER ---
+// P1-ZERO-LINES: one rebuild when the transfer list arrives after a quote was built without it
+function _tsTransfersRetryNow_() {
+    try {
+        var a = window._tsTransfersRetry_; if (!a || !masterData.transfers || !masterData.transfers.length) return;
+        window._tsTransfersRetry_ = null;
+        if (typeof currentPlan !== 'undefined' && currentPlan && currentPlan.length) { optimizeTransfers(a[0], a[1]); if (typeof renderTables === 'function') renderTables(); }
+    } catch (e) { console.warn('[transfers retry]', e); }
+}
 function optimizeTransfers(tBudgetTotal, paxCount) {
-    if (!masterData.transfers || masterData.transfers.length === 0) return;
+    // P1-ZERO-LINES (owner 4 Nov, DEV): never a silent early return when the transfer list is not loaded yet —
+    // build the legs as PRICE MISSING (never ₹0) and rebuild once the list arrives (_tsTransfersRetry_).
+    if (!masterData.transfers || masterData.transfers.length === 0) {
+        window._tsTransfersRetry_ = [tBudgetTotal, paxCount];
+        masterData.transfers = masterData.transfers || [];
+    } else { window._tsTransfersRetry_ = null; }
     const manualTransfers = selectedTransfers.filter(t => t.isManual);
 
     // Find the best transfer record for a city + hotel name + direction (ARRIVAL/DEPARTURE)
@@ -7691,7 +7707,7 @@ function optimizeTransfers(tBudgetTotal, paxCount) {
         const dirUpper  = direction.toUpperCase();
         const cityRecs  = masterData.transfers.filter(t =>
             ((t.city || '').toLowerCase().trim() === cityLower || (t.city || '').toLowerCase().includes(cityLower))
-            && (t.direction || '').toUpperCase() === dirUpper
+            && ['', dirUpper, 'BOTH'].indexOf((t.direction || '').toUpperCase()) > 0   // P1-ZERO-LINES: a 'BOTH' row serves ARRIVAL and DEPARTURE (DEV Transfers carry BOTH; without this the retry never priced)
         );
         if (cityRecs.length === 0) return null;
         // Try exact hotel name match first
@@ -7709,7 +7725,9 @@ function optimizeTransfers(tBudgetTotal, paxCount) {
 
     // Build a transfer leg — always uses the actual hotel name on the hotel side
     const buildLeg = (legId, date, cityFallback, match, direction, hotelName) => {
-        const vPrice = match ? getVehiclePrice(match, paxCount) : 0;
+        const _vp = match ? Number(getVehiclePrice(match, paxCount)) : 0;
+        const _missing = !(_vp > 0);   // P1-ZERO-LINES: no master match (or a 0 rate) = PRICE MISSING, never ₹0
+        const vPrice = _missing ? null : _vp;
         let from, to;
         if (direction === 'ARRIVAL') {
             from = match ? (match.from || `${cityFallback} Airport`) : `${cityFallback} Airport`;
@@ -7724,19 +7742,21 @@ function optimizeTransfers(tBudgetTotal, paxCount) {
         }
         // v19.1: details ALWAYS generated from current state — never reads master Schedule.
         const _vLabel = _vehicleLabelForDetails((getTravelConfigs() || {}).vehicleType);
-        return {
+        const leg = {
             legId, date,
             city:           match ? match.city : cityFallback,
             from, to,
             details:        _buildTransferDetailsText(from, to, _vLabel),
             vehiclePrice:   vPrice,
             avgPrice:       vPrice,
-            economySedan:   match ? (Number(match.economySedan)    || 0) : 0,
-            standardVan:    match ? (Number(match.standardVan)     || 0) : 0,
-            premiumVan:     match ? (Number(match.premiumVan)      || 0) : 0,
-            executiveSedan: match ? (Number(match.executiveSedan)  || 0) : 0,
+            economySedan:   match ? (Number(match.economySedan)    || 0) : null,
+            standardVan:    match ? (Number(match.standardVan)     || 0) : null,
+            premiumVan:     match ? (Number(match.premiumVan)      || 0) : null,
+            executiveSedan: match ? (Number(match.executiveSedan)  || 0) : null,
             isManual:       false
         };
+        // flag only when missing, so a fully priced quote's payload (and its billing hash) is byte-identical to today
+        return _missing ? Object.assign(leg, { priceMissing: true }) : leg;
     };
 
     const firstPlan = currentPlan[0];
@@ -7764,6 +7784,10 @@ function optimizeTransfers(tBudgetTotal, paxCount) {
         newLegs.push(buildLeg(`arrival-${firstPlan.city}`, firstPlan.cin, firstPlan.city, am, 'ARRIVAL', firstPlan?.hotel?.name || ''));
     }
 
+    // C4 D-05NOV-FLIGHT-TRANSFERS: the engine's flight-leg transfers stay (route order, hotel side refreshed from the live plan, price as the
+    // engine sent it); a leg whose cities are no longer next to each other in the plan is dropped, its 'Price on request' line too.
+    tsFxKeep_(selectedTransfers, currentPlan).forEach(function (t) { newLegs.push(t); });
+    window._tsFxMissing = tsFxKeepMissing_(window._tsFxMissing, currentPlan);
     // Inter-city legs — AGENT-ADDED ONLY. Never auto-generated. (BUG-1, owner spec 2026-08-13)
     // SPEC: the builder prices and quotes ONLY the first (arrival airport→hotel) and last
     // (departure hotel→airport) transfer. Middle / inter-city car legs are optional MANUAL
@@ -8179,7 +8203,7 @@ function renderTables() {
     // Transfers (vehicle-based — no pax multiplier)
     const tBody = document.getElementById('transferTableBody');
     if (tBody) {
-        tBody.innerHTML = selectedTransfers.map((t, idx) => {
+        tBody.innerHTML = tsFxMergeHtml_(selectedTransfers.map((t, idx) => {   // C4: + the 'Price on request' flight-leg rows
             const vCost  = Math.round(Number(t.vehiclePrice || t.avgPrice) || 0);
             // P1 A3: screen == PDF. No TYPE column / city pill; DETAILS = shared rule (vehicle on line 2,
             // agent-typed DETAILS as typed). Display-only: t.details is never rewritten by render.
@@ -8219,7 +8243,7 @@ function renderTables() {
                     <button onclick="openTransferSwap('${t.legId}')" class="tbl-action-btn">Swap</button>
                 </td>
             </tr>`;
-        }).join('') + `
+        }), selectedTransfers, window._tsFxMissing) + `
         <tr class="no-print">
             <td colspan="6" class="p-2 border">
                 <button onclick="openAddTransferDirect()" class="act-add-btn">+ Add Transfer</button>
@@ -8484,6 +8508,7 @@ async function runAutoBuild() {
         currentPlan       = _normalizeLoadedPlanShape_(data.currentPlan       || [], data);
         selectedTransfers = data.selectedTransfers || [];
         selectedIntercity = data.selectedIntercity || [];
+        window._tsFxMissing = null;   // C4: no flight-leg lines on this path
         window._enhancerByCity = data.enhancerSnapshot || {};   // clear stale add-ons
         window._tsAddOns = null;   // ADDON-LEAK (R7): a previous quote's priced add-ons never ride into this plan's payload/PDF
 
@@ -8773,6 +8798,20 @@ function tsConfirmMissingLegs_() {
     var m = [];
     try { m = tsMissingLegs_(currentPlan || [], (typeof selectedIntercity !== 'undefined' ? selectedIntercity : [])); } catch (e) { return true; }
     if (typeof tsSdDriveFor_ === 'function') m = m.filter(function (x) { return !tsSdDriveFor_(x.from, x.to, x.date); });   // SELF-DRIVE (#166): driven legs
+    // P1-ZERO-LINES: also any transfer / intercity line at ₹0 or PRICE MISSING (one confirm, never a block)
+    try {
+        (typeof selectedTransfers !== 'undefined' ? selectedTransfers : []).forEach(function (t) {
+            if (!(Number(t.vehiclePrice || t.avgPrice) > 0)) m.push({ from: (t.from || t.city || 'Transfer'), to: (t.to || '') + ' (transfer: price on request)' });
+        });
+        (typeof selectedIntercity !== 'undefined' ? selectedIntercity : []).forEach(function (t) {
+            if (!t || t._isSwissPassRow || Number(t.price) > 0) return;
+            var ft = String(t.fromTo || ''), parts = ft.toLowerCase().split(' to ');
+            var swiss = (typeof swissPassEnabled !== 'undefined' && swissPassEnabled && typeof SWISS_CITIES_SET !== 'undefined' && parts.length > 1
+                && [...SWISS_CITIES_SET].some(function (sc) { return parts[0].includes(sc); }) && [...SWISS_CITIES_SET].some(function (sc) { return parts.slice(1).join(' to ').includes(sc); }));
+            if (swiss) return;   // ₹0 (Pass) is a real, covered price
+            m.push({ from: ft || (t.mode || 'Intercity'), to: '(intercity: price on request)' });
+        });
+    } catch (eZ) {}
     if (!m.length) return true;
     return window.confirm(m.map(function (x) { return x.from + ' → ' + x.to; }).join(', ') + ' not included — send anyway?');
 }
@@ -8803,6 +8842,130 @@ function showEngineWarnings(flags) {
     bn.style.display = 'block';
 }
 
+// ==== TS-FLIGHT-XFER BEGIN — CARD_29OCT_yash C4 / D-05NOV-FLIGHT-TRANSFERS, page side of clasp-dev #31 ====
+// The engine (clasp-dev #31) adds, for each inter-city leg that is a flight, hotel -> airport in city A (leg 'flight_departure') and
+// airport -> hotel in city B (leg 'flight_arrival'); legIndex = that city's place in the route. A priced one is a normal transfer row
+// (its price as the engine sent it); an unpriced one comes in transferMissing (price null, priceOnRequest true) and is shown as
+// 'Price on request: your consultant will confirm' — never a ₹0 row, never in the total. No flight leg: nothing here runs on a row.
+var TS_FX_POR_TEXT = 'Price on request: your consultant will confirm';
+function tsFxIsLeg_(t) { return !!t && (t.leg === 'flight_departure' || t.leg === 'flight_arrival'); }
+function _tsFxN_(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
+// G8 (owner test of clasp-dev #35 on fit-dev, 10 Nov): on a trip with a flight leg the engine sends every transfer record with its OWN
+// date, from and to (that record's stay: arrival = check-in, airport -> hotel; departure = check-out, hotel -> airport). The page shows
+// them AS GIVEN and never stamps a row with the last stay. A record without them (no flight leg, or an older engine) keeps the page's
+// own logic below, so a trip with no flight leg is exactly today's.
+function tsFxGiven_(t) { return !!t && [t.date, t.from, t.to].every(function (v) { return typeof v === 'string' && v.trim() !== ''; }); }
+function tsFxIsEnd_(t) { return !!t && (t.leg === 'arrival' || t.leg === 'departure'); }
+// A record with the engine's date / from / to: those three as given; Details rebuilt from them (same sentence builder as every row).
+function tsFxGivenRow_(t) {
+  var out = Object.assign({}, t, { legId: t.legId || (t.leg + '-' + (t.city || '') + (tsFxIsLeg_(t) && t.legIndex != null ? '-' + t.legIndex : '')) });
+  if (t.priceOnRequest === true) return out;
+  var veh = t.vehicle || t.vehicleType || ((typeof _vehicleLabelForDetails === 'function' && typeof getTravelConfigs === 'function')
+    ? _vehicleLabelForDetails(((getTravelConfigs() || {}).vehicleType)) : '');
+  out.schedule = '';
+  if (!t._detailsCustom && typeof _buildTransferDetailsText === 'function') out.details = _buildTransferDetailsText(t.from, t.to, veh);
+  return out;
+}
+// A trip-end 'Price on request' record after a hotel swap: date + hotel side from the first / last stay of the live plan (null when
+// that stay is no longer the record's city).
+function tsFxEndRow_(t, plan) {
+  plan = plan || []; var dep = t.leg === 'departure', s = plan[dep ? plan.length - 1 : 0];
+  if (!s || _tsFxN_(s.city) !== _tsFxN_(t.city)) return null;
+  var city = s.city, hotel = (s.hotel && s.hotel.name) || city;
+  return Object.assign({}, t, { date: (dep ? s.cout : s.cin) || t.date || '', from: dep ? hotel : city + ' Airport', to: dep ? city + ' Airport' : hotel });
+}
+// The stay a flight-leg transfer belongs to: legIndex when that stay is the transfer's city and its neighbour is the other end of the
+// flight; else the first stay that fits; -1 when none (the plan no longer has that flight).
+function tsFxStay_(t, plan) {
+  plan = plan || [];
+  var dep = t.leg === 'flight_departure', other = dep ? t.flightTo : t.flightFrom;
+  var fits = function (k) {
+    var s = plan[k], nb = plan[dep ? k + 1 : k - 1];
+    return !!s && _tsFxN_(s.city) === _tsFxN_(t.city) && (!_tsFxN_(other) || (!!nb && _tsFxN_(nb.city) === _tsFxN_(other)));
+  };
+  var i = Number(t.legIndex);
+  if (Number.isInteger(i) && fits(i)) return i;
+  for (var k = 0; k < plan.length; k++) if (fits(k)) return k;
+  return -1;
+}
+// Date, from, to and details from the stay: flight_departure = city A check-out, A's hotel -> A airport; flight_arrival = city B
+// check-in, B airport -> B's hotel. Same sentence builder as the arrival / departure rows. Returns a copy (the input is not changed).
+function tsFxEnrich_(t, plan, i) {
+  var stay = (plan || [])[i] || {}, dep = t.leg === 'flight_departure';
+  var city = t.city || stay.city || '', hotel = (stay.hotel && stay.hotel.name) || city;
+  var from = dep ? hotel : city + ' Airport', to = dep ? city + ' Airport' : hotel;
+  var out = Object.assign({}, t, { date: (dep ? stay.cout : stay.cin) || t.date || '', from: from, to: to, legId: t.legId || (t.leg + '-' + city + '-' + i) });
+  if (t.priceOnRequest === true) return out;
+  var veh = t.vehicle || t.vehicleType || ((typeof _vehicleLabelForDetails === 'function' && typeof getTravelConfigs === 'function')
+    ? _vehicleLabelForDetails(((getTravelConfigs() || {}).vehicleType)) : '');
+  out.schedule = '';
+  if (!t._detailsCustom && typeof _buildTransferDetailsText === 'function') out.details = _buildTransferDetailsText(from, to, veh);
+  return out;
+}
+// The engine's 'Price on request' records for flight legs (transferMissing), dated + named; null when there is none.
+function tsFxMissingFrom_(missing, plan) {
+  var out = [];
+  (Array.isArray(missing) ? missing : []).forEach(function (m) {
+    if (!m || m.priceOnRequest !== true) return;
+    if (tsFxGiven_(m) && (tsFxIsLeg_(m) || tsFxIsEnd_(m))) { out.push(tsFxGivenRow_(m)); return; }   // G8: as the engine dated + named it
+    if (!tsFxIsLeg_(m)) return;
+    var i = tsFxStay_(m, plan); if (i < 0) return;
+    out.push(tsFxEnrich_(m, plan, i));
+  });
+  return out.length ? out : null;
+}
+// A saved list read back as it was saved (same objects, same order = same billing hash); null when absent / not a list of records.
+function tsFxValid_(a) {
+  if (!Array.isArray(a) || !a.length) return null;
+  var ok = a.filter(function (r) { return !!r && r.priceOnRequest === true && (tsFxIsLeg_(r) || (tsFxIsEnd_(r) && tsFxGiven_(r))); });
+  return ok.length === a.length ? a : (ok.length ? ok : null);
+}
+// optimizeTransfers: the flight-leg rows still in the plan, hotel side + date refreshed (an agent-typed Details is kept as typed).
+function tsFxKeep_(rows, plan) {
+  var out = [];
+  (rows || []).forEach(function (t) { if (!tsFxIsLeg_(t)) return; var i = tsFxStay_(t, plan); if (i >= 0) out.push(tsFxEnrich_(t, plan, i)); });
+  return out;
+}
+function tsFxKeepMissing_(fx, plan) {
+  var k = [];
+  (fx || []).forEach(function (r) {
+    if (tsFxIsEnd_(r)) { var e = tsFxEndRow_(r, plan); if (e) k.push(e); return; }   // G8: a trip-end record stays on its first / last stay
+    if (!tsFxIsLeg_(r)) return; var i = tsFxStay_(r, plan); if (i >= 0) k.push(tsFxEnrich_(r, plan, i));
+  });
+  return k.length ? k : null;
+}
+function tsFxOrder_(transfers, fx) {
+  // D-05NOV-FLIGHT-TRANSFERS: where each 'Price on request' flight-leg transfer sits among the transfer rows. The rows keep their
+  // own order (row indexes unchanged); a record goes before the first DATED row that comes after it by (date, arrival · flight
+  // departure · flight arrival · departure). No record = the rows as they are. Byte-identical twin: page + PDFGenerator.gs.
+  var R = { arrival: 0, flight_departure: 1, flight_arrival: 2, departure: 3 };
+  var key = function (t) { return String((t && t.date) || '') + '|' + (R[t && t.leg] != null ? R[t.leg] : 1); };
+  var rest = (Array.isArray(fx) ? fx : []).filter(function (r) { return !!r && typeof r === 'object'; }).sort(function (a, b) {
+    var ka = key(a), kb = key(b); return ka < kb ? -1 : ka > kb ? 1 : (Number(a.legIndex) || 0) - (Number(b.legIndex) || 0); });
+  var out = [];
+  (transfers || []).forEach(function (t, i) {
+    if (t && t.date) { var k = key(t); while (rest.length && key(rest[0]) < k) out.push({ fx: rest.shift() }); }
+    out.push({ t: t, i: i });
+  });
+  rest.forEach(function (r) { out.push({ fx: r }); });
+  return out;
+}
+// The 03 table: the transfer row HTML (one string per selectedTransfers row, same order) with the 'Price on request' rows placed by tsFxOrder_.
+function tsFxMergeHtml_(rowsHtml, transfers, fx) {
+  var e = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  return tsFxOrder_(transfers, fx).map(function (x) {
+    if (x.t !== undefined) return rowsHtml[x.i];
+    var r = x.fx;
+    return '<tr class="ts-fx-por" data-fx-leg="' + e(r.leg) + '">'
+      + '<td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;">' + e(typeof formatDate === 'function' ? formatDate(r.date) : r.date) + '</td>'
+      + '<td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);">' + e(r.from) + '</td>'
+      + '<td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);">' + e(r.to) + '</td>'
+      + '<td class="p-2 border" style="font-size:12px;font-style:italic;color:var(--ink4);white-space:pre-wrap;">One way transfer · <span style="color:#B42318;font-style:normal;font-weight:700;">' + e(TS_FX_POR_TEXT) + '</span></td>'
+      + '<td class="price-col no-print p-2 border" style="font-size:12px;font-weight:700;color:#B42318;text-align:right;white-space:nowrap;">Price on request</td>'
+      + '<td class="p-2 border text-center no-print"></td></tr>';
+  }).join('');
+}
+// ==== TS-FLIGHT-XFER END ====
 // Transform engine (computeItinerary) response into the shape existing renderTables expects.
 // Key invariants renderTables relies on:
 //   currentPlan[i] = { city, cin, cout, nights, id, hotel:{name,starRating,cost,meals?,roomType?,category?}, sights:[{assignedDay,instanceId,info,price,category?,duration?,tags?}], dayNotes:{} }
@@ -9040,6 +9203,8 @@ function transformEngineResult(result, route, config) {
     const firstHotel = (currentPlan[0] && currentPlan[0].hotel && currentPlan[0].hotel.name) || firstCity.city || '';
     const lastHotel  = (currentPlan[currentPlan.length - 1] && currentPlan[currentPlan.length - 1].hotel && currentPlan[currentPlan.length - 1].hotel.name) || lastCity.city || '';
     const enrichedTransfers = rawTransfers.map(function(t) {
+        if (tsFxGiven_(t)) return tsFxGivenRow_(t);   // G8: the engine's own date / from / to, as given (never the last stay)
+        if (tsFxIsLeg_(t)) { const _fi = tsFxStay_(t, currentPlan); if (_fi >= 0) return tsFxEnrich_(t, currentPlan, _fi); }   // C4 D-05NOV-FLIGHT-TRANSFERS: its own city, not the last one
         const isArrival = (t.leg === 'arrival');
         const d = isArrival ? (firstCity.cin || '') : (lastCity.cout || '');
         const from = isArrival ? ((t.city || firstCity.city || '') + ' Airport') : lastHotel;
@@ -9060,6 +9225,7 @@ function transformEngineResult(result, route, config) {
         });
     });
 
+    const flightTransferMissing = tsFxMissingFrom_(result.transferMissing, currentPlan);   // C4: 'Price on request' (never ₹0, not in the total); null = none
     // Enrich intercity with date + default notes.
     // Date = cout of the 'from' city in selectedRoute (cities ordered by date).
     const rawIntercity = result.selectedIntercity || [];
@@ -9078,6 +9244,7 @@ function transformEngineResult(result, route, config) {
     return {
         currentPlan: currentPlan,
         selectedTransfers: enrichedTransfers,
+        flightTransferMissing: flightTransferMissing,   // C4
         selectedIntercity: enrichedIntercity,
         intelligence: {},
         costSummary: result.costSummary || null,
@@ -9231,6 +9398,7 @@ async function onAutoBuildQuote() {
 
         currentPlan       = transformed.currentPlan;
         selectedTransfers = transformed.selectedTransfers;
+        window._tsFxMissing = transformed.flightTransferMissing || null;   // C4 D-05NOV-FLIGHT-TRANSFERS
         selectedIntercity = transformed.selectedIntercity;
         tsSdTakeResult_(data, params); tsTakeUpgrades_(data);   // #189 optional upgrades (never in the total)   // SELF-DRIVE (#166): what this quote was built with + response.selfDrive (validated)
 
@@ -9464,8 +9632,15 @@ function selectManualTransfer(from, to, economySedan, standardVan, premiumVan, e
 function editTransfer(index, field, value) {
     if (field === 'avgPrice') {
         // Vehicle pricing is per-vehicle (flat), not per-person
-        selectedTransfers[index].avgPrice      = Number(value);
-        selectedTransfers[index].vehiclePrice  = Number(value);
+        // P1-ZERO-LINES: ₹0 is never a price — a blank/0 entry marks the leg PRICE MISSING ("Price on request").
+        if (!(Number(value) > 0)) {
+            selectedTransfers[index].avgPrice = null; selectedTransfers[index].vehiclePrice = null; selectedTransfers[index].priceMissing = true;
+            if (typeof showToast === 'function') showToast('₹0 is not a price — this transfer is marked "Price on request".', 'info');
+        } else {
+            selectedTransfers[index].avgPrice      = Number(value);
+            selectedTransfers[index].vehiclePrice  = Number(value);
+            delete selectedTransfers[index].priceMissing;
+        }
     } else {
         selectedTransfers[index][field] = value;
     }
@@ -10621,6 +10796,9 @@ function _buildCurrentPayload() {
         ...(window._tsSdResult ? { selfDriveResult: window._tsSdResult } : {}),
         // addOns (D-29-OWNER-2 #6): priced must-dos NOT in the total; EXCLUDED from the billing hash on BOTH sides. Absent when none.
         ...(window._tsAddOns ? { addOns: window._tsAddOns } : {}),
+        // C4 D-05NOV-FLIGHT-TRANSFERS: the 'Price on request' flight-leg transfers (so the PDF lists them). Hashed like any plan content, on
+        // both sides (the backend hashes every key but its exclusions). ABSENT when there is none = today's payload and hash, byte for byte.
+        ...(window._tsFxMissing ? { flightTransferMissing: window._tsFxMissing } : {}),
         ...((Number(document.getElementById('budgetPerPerson')?.value) || 0) > 0 ? { budgetPerPerson: Number(document.getElementById('budgetPerPerson').value) } : {}),
         selectedRoute, currentPlan, selectedTransfers, selectedIntercity
     };
@@ -10730,6 +10908,7 @@ async function _revertToSaved(paxName) {
     selectedRoute     = original.selectedRoute     || [];
     currentPlan       = _normalizeLoadedPlanShape_(original.currentPlan       || [], original);
     selectedTransfers = original.selectedTransfers || [];
+    window._tsFxMissing = tsFxValid_(original.flightTransferMissing);   // C4
     selectedIntercity = original.selectedIntercity || [];
     try { await _ensureData_(_routeCities_(), true); }   // P0 STARTUP-PERCITY
     catch (e) { showToast('Could not load hotels and tours for this quote — swaps may be empty; reload to retry', 'error'); }
@@ -11115,6 +11294,10 @@ function _hidePdfModal() {
 async function downloadAdobePDF(btnEl) {
   if (btnEl && btnEl.disabled) return;
   if (!tsConfirmMissingLegs_()) return;   // P0: one confirm click when legs are missing (never a block)
+  // PDF-NAME-DEADLOCK-01 (owner GO 2 Nov, P0): ask for the Name of Pax FIRST. The spinner overlay (z 99999) used to
+  // open before processBillableAction's name pop-up (z 1000), hiding it -> endless "Saving quote…" + blank tab.
+  // Cancel = nothing opened, saved or charged. The Continue click is a fresh user gesture, so the tab below still opens.
+  if (!(await _ensurePaxName())) { showToast('Add the Name of Pax to download the PDF.', 'error'); return; }
   // PDF-POPUP-01 (owner 26 Oct, P0): a window.open() after the ~20 s save+generate is outside the click, so
   // pop-up blockers drop it and the rep sees nothing (server log: 3 PDFs made, 50 s apart, none seen).
   // Open the tab NOW, inside the click; point it at the file when ready. Blocked anyway -> a button in the modal.
@@ -11158,7 +11341,11 @@ async function downloadAdobePDF(btnEl) {
     // delivery of a new quote — sets window._lastQuoteId, then runs this deliverFn to
     // generate the PDF. Unchanged already-billed quotes hit the free path and deliver
     // without a second charge. 'pdf' is a delivery path → no version modal.
-    await processBillableAction('pdf', async (auth) => {
+    // PDF-NAME-DEADLOCK-01: never an endless wait. After 90 s show a clear error (the save may still finish:
+    // the rep checks My Itineraries before retrying, so nothing is charged twice — unchanged quotes are free).
+    var _pdfTimer = null;
+    var _pdfTimeout = new Promise(function (_, rej) { _pdfTimer = setTimeout(function () { rej(new Error('The PDF is taking too long (90 s). Check My Itineraries before trying again.')); }, 90000); });
+    await Promise.race([_pdfTimeout, processBillableAction('pdf', async (auth) => {
       _delivered = true;
       // BILLING STOP 1: authorizeDelivery already generated this PDF and charged only after
       // it was confirmed. Use that file — no second generation, no anonymous GET.
@@ -11189,7 +11376,7 @@ async function downloadAdobePDF(btnEl) {
       } else {
         _pdfShowLink_(directUrl);   // pop-up blocked (or the tab was closed): a real click on a link is never blocked
       }
-    });
+    })]);
   } catch (e) {
     console.error('[Adobe PDF]', e);
     try { if (_pdfTab && !_pdfTab.closed) _pdfTab.close(); } catch (eC) {}
@@ -11199,6 +11386,7 @@ async function downloadAdobePDF(btnEl) {
       showToast((e && e.message) || 'PDF generation failed', 'error');
     }
   } finally {
+    if (typeof _pdfTimer !== 'undefined' && _pdfTimer) clearTimeout(_pdfTimer);
     // Save blocked / early-returned before deliverFn ran → no success/error timer will
     // fire, so close the "Saving quote…" modal here to avoid orphaning it.
     if (!_delivered) { _hidePdfModal(); try { if (_pdfTab && !_pdfTab.closed) _pdfTab.close(); } catch (eC2) {} }
