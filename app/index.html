@@ -5335,6 +5335,7 @@ async function searchItinerary(query) {
         selectedTransfers = data.selectedTransfers || [];
         selectedIntercity = data.selectedIntercity || [];
         window._tsFxMissing = tsFxValid_(data.flightTransferMissing);   // C4: as saved (same hash on re-save)
+        window._tsXferVehOpts = null;   // SWAP-VEHICLES
         try { await _ensureData_(_routeCities_(), true); }   // P0 STARTUP-PERCITY: before the saved quote is drawn
         catch (e) { showToast('Could not load hotels and tours for this quote — swaps may be empty; reload to retry', 'error'); }
         window._tsAddOns = (Array.isArray(data.addOns) && data.addOns.length) ? data.addOns : null;   // ADDON-RELOAD (R7): restore BEFORE the banner draws
@@ -8568,6 +8569,7 @@ async function runAutoBuild() {
         selectedTransfers = data.selectedTransfers || [];
         selectedIntercity = data.selectedIntercity || [];
         window._tsFxMissing = null;   // C4: no flight-leg lines on this path
+        window._tsXferVehOpts = null;   // SWAP-VEHICLES
         window._enhancerByCity = data.enhancerSnapshot || {};   // clear stale add-ons
         window._tsAddOns = null;   // ADDON-LEAK (R7): a previous quote's priced add-ons never ride into this plan's payload/PDF
 
@@ -9463,6 +9465,7 @@ async function onAutoBuildQuote() {
 
         currentPlan       = transformed.currentPlan;
         selectedTransfers = transformed.selectedTransfers;
+        window._tsXferVehOpts = tsSwapOptsByLeg_(data.transferVehicleOptions, selectedTransfers);   // SWAP-VEHICLES (clasp-dev #36)
         window._tsFxMissing = transformed.flightTransferMissing || null;   // C4 D-05NOV-FLIGHT-TRANSFERS
         selectedIntercity = transformed.selectedIntercity;
         tsSdTakeResult_(data, params); tsTakeUpgrades_(data);   // #189 optional upgrades (never in the total)   // SELF-DRIVE (#166): what this quote was built with + response.selfDrive (validated)
@@ -9594,8 +9597,86 @@ async function onAutoBuildQuote() {
 // =============================================================
 // TRANSFER SWAP MODAL
 // =============================================================
+// ==== TS-SWAP-VEHICLES v1 (owner 11 Nov, clasp-dev #35) — Swap = the vehicle choices for the same transfer ====
+// Capacities (passengers) = clasp-dev TransferSelect.gs TSX_DEFAULT_RULES (owner 15 Oct nominal capacities).
+var TS_SWAP_TYPES = ['economySedan', 'executiveSedan', 'luxurySedan', 'standardVan', 'premiumVan', 'minibusSmall', 'minibusLarge'];
+var TS_SWAP_LABELS = { economySedan: 'Economy Sedan', executiveSedan: 'Executive Sedan', luxurySedan: 'Luxury Sedan',
+  standardVan: 'Standard Van', premiumVan: 'Premium Van', minibusSmall: 'Minibus (small)', minibusLarge: 'Minibus (large)' };
+var TS_SWAP_CAP = { economySedan: 3, executiveSedan: 3, luxurySedan: 3, standardVan: 6, premiumVan: 6, minibusSmall: 8, minibusLarge: 18 };
+// The vehicles that can carry the whole group in ONE vehicle, with a price above 0, cheapest first.
+// engineOpts (optional): the engine's list for this row, [{ key, label, cost, pax }]; else the row's own per-vehicle prices.
+function tsSwapVehicleOptions_(t, pax, engineOpts) {
+  pax = Math.max(1, Math.floor(Number(pax) || 1));
+  var cur = String((t && t.vehicleKey) || '');
+  var src = Array.isArray(engineOpts) && engineOpts.length
+    ? engineOpts.map(function (o) { return { key: String(o.key || ''), label: String(o.label || TS_SWAP_LABELS[o.key] || o.key || ''), cost: Number(o.cost) || 0, cap: Number(o.pax) || TS_SWAP_CAP[o.key] || 0 }; })
+    : TS_SWAP_TYPES.map(function (k) { return { key: k, label: TS_SWAP_LABELS[k], cost: Number(t && t[k]) || 0, cap: TS_SWAP_CAP[k] }; });
+  return src.filter(function (o) { return o.key && o.cost > 0 && o.cap >= pax; })
+    .map(function (o) { o.current = o.key === cur && !(Number(t.vehicleCount) > 1); return o; })
+    .sort(function (a, b) { return a.cost - b.cost || a.cap - b.cap; });
+}
+// clasp-dev #36 (Mihir): reply.transferVehicleOptions[i] = { leg, city, date, from, to, options: [{ key, label, unit, cost, pax, bags, selected }] },
+// same index as reply.selectedTransfers. Kept in a page-only map by legId (never in the saved rows: the billing hash does not move).
+function tsSwapOptsByLeg_(list, rows) {
+  var out = {};
+  (Array.isArray(rows) ? rows : []).forEach(function (t, i) {
+    var e = Array.isArray(list) ? list[i] : null;
+    if (!t || !e || !Array.isArray(e.options)) return;
+    if (e.leg && t.leg && e.leg !== t.leg) return;   // a list for another row is never used
+    if (e.city && t.city && String(e.city).toLowerCase() !== String(t.city).toLowerCase()) return;
+    out[t.legId] = e.options;
+  });
+  return out;
+}
+function tsSwapEsc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function openTransferSwap(legId) {
-    if (!_withTransport_(() => openTransferSwap(legId))) return;   // P0 STARTUP-PERCITY
+    window.activeLegId = legId;
+    const t = selectedTransfers.find(x => x.legId === legId);
+    const pax = getPaxCount();
+    const engineOpts = (window._tsXferVehOpts || {})[legId];
+    const opts = t ? tsSwapVehicleOptions_(t, pax, engineOpts) : [];
+    const cost = t ? Math.round(Number(t.vehiclePrice || t.avgPrice) || 0) : 0;
+    const veh = t ? String(t.vehicleType || t.vehicle || '').trim() : '';
+    document.getElementById('modalHeading').innerText = 'Change vehicle';
+    const mc = document.getElementById('modalContent');
+    mc.className = 'p-4 overflow-y-auto space-y-3 bg-slate-50';
+    mc.style.cssText = '';
+    const head = t ? `<div class="bg-white border border-slate-200 p-3 rounded-xl">
+            <p class="text-[10px] font-bold text-slate-500 uppercase">${tsSwapEsc_(formatDate(t.date))} · ${pax} traveller${pax === 1 ? '' : 's'}</p>
+            <p class="text-[12px] font-bold text-slate-800">${tsSwapEsc_(t.from)} ➔ ${tsSwapEsc_(t.to)}</p>
+            <p class="text-[11px] text-slate-500">Now: ${tsSwapEsc_((Number(t.vehicleCount) > 1 ? t.vehicleCount + ' × ' : '') + (veh || 'vehicle not set'))}${cost > 0 ? ' · ₹' + cost.toLocaleString('en-IN') : ' · price on request'}</p>
+        </div>` : '';
+    const list = opts.map(o => `
+        <div class="bg-white border ${o.current ? 'border-blue-500' : 'border-slate-200'} p-3 rounded-xl hover:border-blue-500 cursor-pointer shadow-sm flex justify-between items-center gap-2"
+             data-veh="${tsSwapEsc_(o.key)}" onclick="tsSwapPickVehicle_('${tsSwapEsc_(legId)}','${tsSwapEsc_(o.key)}')">
+            <div><p class="text-[12px] font-bold text-slate-800">${tsSwapEsc_(o.label)}${o.current ? ' <span class="text-[9px] text-blue-600 uppercase">current</span>' : ''}</p>
+                 <p class="text-[10px] text-slate-500">up to ${o.cap} travellers, one vehicle</p></div>
+            <p class="text-sm font-black text-blue-700">₹${Math.round(o.cost).toLocaleString('en-IN')}</p>
+        </div>`).join('');
+    const none = !t ? 'This transfer was not found.'
+        : 'No vehicle with a price seats ' + pax + ' traveller' + (pax === 1 ? '' : 's') + ' in one vehicle for this transfer. Price it by hand, or it stays "Price on request".';
+    mc.innerHTML = head + (opts.length ? list : `<div class="bg-white border border-amber-300 p-3 rounded-xl text-[11px] text-slate-700" data-veh-none="1">${tsSwapEsc_(none)}</div>`)
+        + `<div class="text-right"><button type="button" onclick="openTransferSwapOthers('${tsSwapEsc_(legId)}')" class="text-[10px] text-slate-500 underline">Other transfers in ${tsSwapEsc_((t && t.city) || 'this city')} (changes from / to)</button></div>`;
+    toggleModal(true);
+}
+// Picking a vehicle: that row only. Date, from, to, city, details, legId and the row's price list stay as they are.
+function tsSwapPickVehicle_(legId, key) {
+    const idx = selectedTransfers.findIndex(x => x.legId === legId);
+    if (idx < 0) return;
+    const t = selectedTransfers[idx], pax = getPaxCount();
+    const o = tsSwapVehicleOptions_(t, pax, (window._tsXferVehOpts || {})[legId]).find(v => v.key === key);
+    if (!o) { showToast('That vehicle is not available for this transfer.', 'error'); return; }
+    const cost = Math.round(o.cost);
+    selectedTransfers[idx] = { ...t, vehicleKey: o.key, vehicle: o.label, vehicleType: o.label, vehicleCount: 1,
+        vehiclePrice: cost, avgPrice: cost, cost: cost, perPerson: Math.round(cost / pax), priceMissing: false, isManual: true };
+    toggleModal(false);
+    renderTables();
+    showToast('Vehicle changed to ' + o.label + '.', 'success');
+}
+// ==== /TS-SWAP-VEHICLES v1 ====
+// Today's list (other transfers in the city), reachable from the link in the vehicle window.
+function openTransferSwapOthers(legId) {
+    if (!_withTransport_(() => openTransferSwapOthers(legId))) return;   // P0 STARTUP-PERCITY
     window.activeLegId = legId;
     document.getElementById('modalHeading').innerText = 'Select Transfer Option';
     const mc = document.getElementById('modalContent');
@@ -10977,6 +11058,7 @@ async function _revertToSaved(paxName) {
     currentPlan       = _normalizeLoadedPlanShape_(original.currentPlan       || [], original);
     selectedTransfers = original.selectedTransfers || [];
     window._tsFxMissing = tsFxValid_(original.flightTransferMissing);   // C4
+    window._tsXferVehOpts = null;   // SWAP-VEHICLES
     selectedIntercity = original.selectedIntercity || [];
     try { await _ensureData_(_routeCities_(), true); }   // P0 STARTUP-PERCITY
     catch (e) { showToast('Could not load hotels and tours for this quote — swaps may be empty; reload to retry', 'error'); }
