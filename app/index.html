@@ -4784,6 +4784,7 @@ async function handleRoleChange(username, oldRole, newRole, selectEl) {
         const result = await res.json();
         if (result.success) {
             showToast(result.message || 'Role updated', 'success');
+            tsAgentsChanged_(username, { role: newRole });   // WALLET-SPEED W6
             selectEl.style.background = '#dcfce7';
             setTimeout(() => { selectEl.style.background = '#fff'; }, 1200);
         } else {
@@ -4799,12 +4800,13 @@ async function handleRoleChange(username, oldRole, newRole, selectEl) {
 }
 
 // ── AGENT MANAGEMENT ──────────────────────────────────────────
-async function loadAgentManagement() {
+async function loadAgentManagement(opts) {
     const el = document.getElementById('agentMgmtContent');
     el.innerHTML = '<div style="text-align:center;padding:60px;color:#94a3b8;">Loading agents...</div>';
     try {
-        const res    = await fetch(`${API_URL}?action=getAllAgents`);
-        const agents = await res.json();
+        // WALLET-SPEED W4: opening the tab uses the cached list (refreshed quietly when old); Approve etc. still read the server
+        const reRender = () => { const t = document.getElementById('tab-agents'); if (t && t.style.display !== 'none') loadAgentManagement({ cached: true }); };
+        const agents = (opts && opts.cached) ? await tsAgentsGet_(reRender) : await tsAgentsFetch_(true);
         if (!agents.length) { el.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;">No agents found.</div>'; return; }
 
         const esc = s => String(s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -12070,7 +12072,7 @@ function switchAdminTab(tab) {
     if (tab === 'quote')   loadQuoteDashboard();
     if (tab === 'data')    loadDataDashboard();
     if (tab === 'wallet')  loadWalletAdmin();
-    if (tab === 'agents')  loadAgentManagement();
+    if (tab === 'agents')  loadAgentManagement({ cached: true });
     if (tab === 'manager') loadManagerView();
 }
 
@@ -12091,6 +12093,7 @@ function applyRoleVisibility(role) {
     });
     const lbl = document.getElementById('navRoleLabel');
     if (lbl) lbl.textContent = r || 'USER';
+    if (allowed.indexOf('wallet') >= 0 || allowed.indexOf('agents') >= 0) setTimeout(tsAgentsPrefetch_, 4000);   // WALLET-SPEED W7
 }
 
 async function loadManagerView() {
@@ -12771,19 +12774,64 @@ document.addEventListener('click', function(e) {
     if (dd && badge && !badge.contains(e.target) && !dd.contains(e.target)) dd.style.display = 'none';
 });
 
+// ==== WALLET-SPEED v1 (#230, owner 11 Nov) — one agent list for Agents + Wallet Admin ====
+// getAllAgents reads Users, Quote_Log and Agent_Wallet once each (getAgentList read Agent_Wallet once per user).
+// Shown from the cache at once; refreshed quietly when older than TS_AGENTS_TTL_MS. Admin tabs only.
+var TS_AGENTS_TTL_MS = 60000;
+window._tsAgents = window._tsAgents || { list: null, at: 0, inflight: null };
+function tsAgentsFetch_(force) {
+    var c = window._tsAgents;
+    if (c.inflight && !force) return c.inflight;
+    var go = function () {
+        var p = fetch(`${API_URL}?action=getAllAgents`).then(function (r) { return r.json(); }).then(function (list) {
+            if (!Array.isArray(list)) throw new Error((list && list.error) || 'agent list not loaded');
+            c.list = list; c.at = Date.now(); return list;
+        });
+        c.inflight = p;
+        p.then(function () { if (c.inflight === p) c.inflight = null; }, function () { if (c.inflight === p) c.inflight = null; });
+        return p;
+    };
+    // force while a read is running: wait for it, then read again (a top-up / approve must see its own change)
+    return (force && c.inflight) ? c.inflight.then(go, go) : go();
+}
+function tsAgentsGet_(onFresh) {
+    var c = window._tsAgents;
+    if (c.list) {
+        if (Date.now() - c.at > TS_AGENTS_TTL_MS) tsAgentsFetch_().then(function (l) { if (onFresh) onFresh(l); }, function () {});
+        return Promise.resolve(c.list);
+    }
+    return tsAgentsFetch_();
+}
+function tsAgentsPrefetch_() { if (!window._tsAgents.list) tsAgentsFetch_().catch(function () {}); }
+function tsAgentsChanged_(username, patch) {
+    var c = window._tsAgents, u = String(username || '').toLowerCase();
+    (c.list || []).forEach(function (a) { if (String(a.username || a.agentId || '').toLowerCase() === u) Object.assign(a, patch); });
+    c.at = 0;
+}
+// Wallet Admin dropdown: the same users and wording as before (getAgentList left out PENDING users).
+function tsWalletFillSelect_(list) {
+    const select = document.getElementById('walletAgentSelect');
+    if (!select) return;
+    const keep = select.value;
+    select.innerHTML = '<option value="">— Choose agent —</option>';
+    (list || []).filter(a => String(a.role || '').toUpperCase() !== 'PENDING').forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.agentId;
+        opt.textContent = (a.agencyName || a.fullName || a.agentId) + ' — ₹' + (Number(a.walletBalance) || 0).toLocaleString('en-IN');
+        select.appendChild(opt);
+    });
+    select.value = keep;
+}
+// ==== /WALLET-SPEED v1 ====
 async function loadWalletAdmin() {
     const select = document.getElementById('walletAgentSelect');
-    if (select.options.length > 1) return;
+    if (select.options.length <= 1) select.innerHTML = '<option value="">Loading agents...</option>';
     try {
-        const res = await fetch(`${API_URL}?action=getAgentList`);
-        const agents = await res.json();
-        agents.forEach(a => {
-            const opt = document.createElement('option');
-            opt.value = a.agentId;
-            opt.textContent = (a.agencyName || a.personName || a.agentId) + ' — ₹' + (a.balance || 0).toLocaleString('en-IN');
-            select.appendChild(opt);
-        });
-    } catch(e) { showToast('Failed to load agents', 'error'); }
+        tsWalletFillSelect_(await tsAgentsGet_(tsWalletFillSelect_));
+    } catch(e) {
+        select.innerHTML = '<option value="">— Choose agent —</option>';
+        showToast('Failed to load agents', 'error');
+    }
 }
 
 async function onWalletAgentSelect() {
@@ -12791,15 +12839,26 @@ async function onWalletAgentSelect() {
     const panel = document.getElementById('walletAgentPanel');
     if (!agentId) { panel.style.display = 'none'; return; }
     panel.style.display = 'block';
+    // WALLET-SPEED W2: both calls at once; an answer for an agent no longer picked is dropped
+    const seq = (window._tsWalletSeq = (window._tsWalletSeq || 0) + 1);
+    const balEl = document.getElementById('walletAgentBalance');
+    balEl.textContent = 'Loading...'; balEl.style.color = '#94a3b8';
+    document.getElementById('walletAdminTxnList').innerHTML = '<div style="color:#94a3b8;">Loading...</div>';
+    const getJson_ = url => fetch(url).then(r => r.json()).then(v => ({ ok: true, v: v }), () => ({ ok: false }));
+    const [balR, txnR] = await Promise.all([
+        getJson_(`${API_URL}?action=getWalletBalance&agentId=${encodeURIComponent(agentId)}`),
+        getJson_(`${API_URL}?action=getRecentTransactions&agentId=${encodeURIComponent(agentId)}`)
+    ]);
+    if (seq !== window._tsWalletSeq) return;
     try {
-        const res = await fetch(`${API_URL}?action=getWalletBalance&agentId=${encodeURIComponent(agentId)}`);
-        const data = await res.json();
+        if (!balR.ok) throw new Error('balance');
+        const data = balR.v;
         document.getElementById('walletAgentBalance').textContent = '₹' + (data.balance || 0).toLocaleString('en-IN');
         document.getElementById('walletAgentBalance').style.color = (data.balance||0) < 200 ? '#dc2626' : '#059669';
-    } catch(e) {}
+    } catch(e) { balEl.textContent = '—'; }
     try {
-        const res = await fetch(`${API_URL}?action=getRecentTransactions&agentId=${encodeURIComponent(agentId)}`);
-        const txns = await res.json();
+        if (!txnR.ok) throw new Error('transactions');
+        const txns = txnR.v;
         const el = document.getElementById('walletAdminTxnList');
         if (!txns.length) { el.innerHTML = '<div style="color:#94a3b8;">No transactions yet</div>'; return; }
         el.innerHTML = '<table style="width:100%;border-collapse:collapse;">' +
@@ -12811,7 +12870,7 @@ async function onWalletAgentSelect() {
                 <td style="padding:6px 8px;color:#64748b;">${t.description||''}</td>
                 <td style="padding:6px 8px;text-align:right;font-weight:600;">₹${Number(t.balance).toLocaleString('en-IN')}</td>
             </tr>`).join('') + '</table>';
-    } catch(e) {}
+    } catch(e) { document.getElementById('walletAdminTxnList').innerHTML = '<div style="color:#dc2626;">Could not load transactions.</div>'; }
 }
 
 async function handleTopUp() {
@@ -12834,10 +12893,7 @@ async function handleTopUp() {
             document.getElementById('walletTopUpAmount').value = '';
             document.getElementById('walletBankRef').value = '';
             onWalletAgentSelect();
-            const select = document.getElementById('walletAgentSelect');
-            select.innerHTML = '<option value="">— Choose agent —</option>';
-            loadWalletAdmin();
-            setTimeout(() => { select.value = agentId; }, 500);
+            tsAgentsFetch_(true).then(tsWalletFillSelect_).catch(function () {});   // WALLET-SPEED W3: fresh balances, the agent stays picked
         } else {
             showToast(result.message, 'error');
         }
