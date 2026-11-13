@@ -7957,7 +7957,21 @@ function tsTrainPriceGate_() {
   var ok = !!el && tsTrainPriceOk_(el.value);
   if (btn) { btn.disabled = !ok; btn.style.opacity = ok ? '' : '0.5'; btn.style.cursor = ok ? '' : 'not-allowed'; }
   if (msg) msg.style.display = ok ? 'none' : 'block';
+  tsPpHintSync_(el ? el.value : '', document.getElementById('trainPricePP'));   // owner 13 Nov (MANUAL-TRANSPORT-LABEL-01)
   return ok;
+}
+// owner 13 Nov (MANUAL-TRANSPORT-LABEL-01): a manual Train / Ferry / Bus / Flight price is the TOTAL for all travellers
+// (the save divides by the travellers, every total multiplies back). This line only SHOWS the per-person share; nothing is stored.
+function tsPpHintText_(total, pax) {
+  var x = Number(String(total == null ? '' : total).trim()), n = Number(pax) || 0;
+  if (!isFinite(x) || x <= 0 || n <= 0) return '';
+  var pp = Math.round(x / n * 100) / 100;   // paise kept: ₹1 for 4 travellers must not read ₹0
+  return '= ₹' + pp.toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' per person';
+}
+function tsPpHintSync_(total, el) {
+  if (!el) return;
+  var t = tsPpHintText_(total, getPaxCount());
+  el.textContent = t; el.style.display = t ? '' : 'none';
 }
 
 // =============================================================
@@ -8343,11 +8357,12 @@ function renderTables() {
                 ? `<span class="text-green-700 font-bold text-[9px]">₹0 <span class="font-normal">(Pass)</span></span>`
                 : `<div class="flex items-center justify-end whitespace-nowrap">
                      <span class="mr-1" style="font-size:12px;color:var(--terra);">₹</span>
-                     ${_isPriceMissing_(icTotal) ? _priceMissingBadge_() : ''}<input type="number" value="${_isPriceMissing_(icTotal) ? '' : icTotal}" placeholder="${_isPriceMissing_(icTotal) ? 'MISSING' : ''}" oninput="_pmSync_(this)"
-                         onchange="editIntercity(${idx}, 'price', this.value)"
+                     ${_isPriceMissing_(icTotal) ? _priceMissingBadge_() : ''}<input type="number" value="${_isPriceMissing_(icTotal) ? '' : icTotal}" placeholder="${_isPriceMissing_(icTotal) ? 'MISSING' : ''}" oninput="_pmSync_(this); tsPpHintSync_(this.value, this.parentElement.nextElementSibling)"
+                         onchange="editIntercity(${idx}, 'price', this.value)" title="Total price for all travellers"
                          class="pdf-input w-20 text-right outline-none font-bold"
                          style="border:none;background:transparent;font-size:13px;color:var(--terra);">
-                   </div>`;
+                   </div>
+                   <div class="ts-pp-hint" style="${tsPpHintText_(icTotal, config.totalPax) ? '' : 'display:none;'}font-size:10px;font-weight:600;color:#475569;text-align:right;white-space:nowrap;margin-top:2px;">${tsPpHintText_(icTotal, config.totalPax)}</div>`;
             return `
             <tr>
                 <td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;">${formatDate(tsSharedLegDate_(ic, currentPlan))}</td>
@@ -10675,9 +10690,10 @@ function openAddTrainDirect() {
                     <input type="text" id="trainNotes" placeholder="e.g. 08:30 Trenitalia FR9613, 1h 30m" class="w-full p-2 border rounded text-xs outline-none mt-0.5">
                 </div>
                 <div class="mt-2">
-                    <label class="text-[8px] font-bold text-slate-400 uppercase">Price Per Person (₹)</label>
-                    <input type="number" id="trainPrice" min="1" step="any" placeholder="Price per person" oninput="tsTrainPriceGate_()" class="w-full p-2 border rounded text-xs outline-none mt-0.5">
-                    <div id="trainPriceMsg" style="font-size:11px;font-weight:600;color:#B42318;margin-top:3px;">Enter the price per person</div>
+                    <label class="text-[8px] font-bold text-slate-400 uppercase">Total price for all travellers (₹)</label>
+                    <input type="number" id="trainPrice" min="1" step="any" placeholder="Total price for all travellers" oninput="tsTrainPriceGate_()" class="w-full p-2 border rounded text-xs outline-none mt-0.5">
+                    <div id="trainPriceMsg" style="font-size:11px;font-weight:600;color:#B42318;margin-top:3px;">Enter the total price for all travellers</div>
+                    <div id="trainPricePP" class="ts-pp-hint" style="display:none;font-size:11px;font-weight:700;color:#475569;margin-top:3px;"></div>
                 </div>
                 <button id="trainAddBtn" disabled onclick="confirmAddTrain()" class="w-full bg-blue-600 text-white py-2 rounded font-bold text-xs uppercase hover:bg-blue-700 mt-3">+ Add to Itinerary</button>
             </div>
@@ -10704,7 +10720,7 @@ function refreshTrainList() {
     list.innerHTML = matches.map((t, i) => {
         const price = Number(t.price || t.avgPrice || t.inr || 0);
         const mode  = t.mode || t.type || 'Train';
-        return `<div onclick="pickTrainOption(${i})" style="padding:6px 8px;background:#fff;border:1px solid #e8ddd0;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;">
+        return `<div onclick="pickTrainOption(${window._trainList.indexOf(t)})" style="padding:6px 8px;background:#fff;border:1px solid #e8ddd0;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;">
             <div style="min-width:0;">
                 <div style="font-size:11px;font-weight:600;color:#2c1810;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.from || '?'} → ${t.to || '?'}</div>
                 <div style="font-size:9px;color:#7a6458;margin-top:1px;">${mode}${t.notes ? ' · ' + t.notes : ''}</div>
@@ -10719,7 +10735,7 @@ function pickTrainOption(idx) {
     if (!t) return;
     document.getElementById('trainRoute').value = (t.from || '') + ' → ' + (t.to || '');
     document.getElementById('trainNotes').value = t.notes || '';
-    document.getElementById('trainPrice').value = Number(t.price || t.avgPrice || t.inr || 0);
+    document.getElementById('trainPrice').value = Math.round(Number(t.price || t.avgPrice || t.inr || 0) * getPaxCount());   // owner 13 Nov (MANUAL-TRANSPORT-LABEL-01): catalogue price is per person, the box holds the total
     document.getElementById('trainMode').value  = t.mode || t.type || 'Train';
     confirmAddTrain();
 }
@@ -10731,7 +10747,7 @@ function confirmAddTrain() {
     const notes = document.getElementById('trainNotes').value.trim();
     const price = parseFloat(document.getElementById('trainPrice').value) || 0;
     if (!route) { showToast('Enter a route (e.g. Rome → Florence)', 'error'); return; }
-    if (!tsTrainPriceGate_()) { showToast('Enter the price per person', 'error'); return; }   // owner 11 Nov (fix 2): every mode, price above 0
+    if (!tsTrainPriceGate_()) { showToast('Enter the total price for all travellers', 'error'); return; }   // owner 11 Nov (fix 2): every mode, price above 0
     const paxCount = getPaxCount();
     selectedIntercity.push({
         legId:    'manual-' + Date.now(),
