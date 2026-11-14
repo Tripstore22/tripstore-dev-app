@@ -560,6 +560,8 @@ textarea.pdf-input{
 /* Batch 1 card 4: on phones a long city name (GOLD COAST, MELBOURNE) ran over the Nights column. Phones only: a slightly smaller,
    tighter tag that wraps at spaces (never mid-word). Desktop is unchanged. */
 @media (max-width:560px){ #hotelTableBody .city-tag{white-space:normal;display:inline-block;font-size:9px;letter-spacing:0;padding:2px 4px;overflow-wrap:normal;word-break:normal;} }
+/* Batch 1 card 4 round 2 (owner 14 Nov): the places are what the client reads first: From / To (transfers) and Route (trains) bigger and bolder. */
+#transferTableBody > tr > td:nth-child(2) textarea, #transferTableBody > tr > td:nth-child(3) textarea, #ferryBusTableBody > tr > td:nth-child(3) textarea{font-size:14.5px !important;font-weight:800 !important;line-height:1.3;}
 .hotel-name-cell{font-size:13px;font-weight:700;color:var(--ink);}
 .hotel-stars-cell{color:#c8990a;font-size:11px;letter-spacing:1px;}
 .hotel-or-similar{font-size:10px;color:var(--ink4);font-style:italic;}
@@ -692,13 +694,25 @@ textarea.pdf-input{
 }
 .modal-overlay.hidden{display:none;}
 /* Batch 1 card 3 (owner 12 Nov test #2): the hotel swap window was too small (620 px wide; 4 hotels visible at 1366x768). */
-.modal-box.ts-modal-hotel{max-width:min(960px,96vw);height:92vh;max-height:92vh;}
-@media (min-width:700px){
-  .modal-box.ts-modal-hotel #modalContent > div:first-child{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;row-gap:8px;}
-  .modal-box.ts-modal-hotel #modalContent > div:first-child > *{grid-column:1 / -1;margin-top:0 !important;}
-  .modal-box.ts-modal-hotel #modalContent > div:first-child > div:has(.star-pill),
-  .modal-box.ts-modal-hotel #modalContent > div:first-child > div:has(.cat-filter){grid-column:auto;}
+.modal-box.ts-modal-hotel{max-width:min(1040px,96vw);height:96vh;max-height:96vh;}
+@media (min-width:700px){   /* Batch 1 card 3 round 2 (owner 14 Nov): >= 6 hotels at 1366x768; filters on 2 rows */
+  .modal-box.ts-modal-hotel #modalContent > div:first-child{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);column-gap:16px;row-gap:6px;padding:8px 16px !important;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > *{margin-top:0 !important;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > :nth-child(1){grid-column:1;grid-row:1;align-self:center;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > :nth-child(5){grid-column:2 / 4;grid-row:1;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > :nth-child(2){grid-column:1;grid-row:2;align-self:start;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > :nth-child(3){grid-column:2;grid-row:2;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > :nth-child(4){grid-column:3;grid-row:2;}
+  .modal-box.ts-modal-hotel .hotel-swap-item{padding:6px 12px;}
+  .modal-box.ts-modal-hotel #hotelListContainer{padding:8px 12px !important;}
+  .modal-box.ts-modal-hotel #hotelListContainer > * + *{margin-top:6px !important;}
 }
+/* owner 14 Nov: filter and chip text in the hotel window 1pt bigger (8 px -> 9.5 px, 11 px -> 12.5 px) */
+.modal-box.ts-modal-hotel .warm-pill{font-size:9.5px;padding:3px 9px;}
+.modal-box.ts-modal-hotel #modalContent > div:first-child label, .modal-box.ts-modal-hotel #modalContent > div:first-child > div > span{font-size:9.5px !important;}
+.modal-box.ts-modal-hotel #modalContent > div:first-child > div:first-child{font-size:11.5px !important;}
+.modal-box.ts-modal-hotel #modalSearch, .modal-box.ts-modal-hotel #minPriceInput, .modal-box.ts-modal-hotel #maxPriceInput{font-size:12.5px !important;}
+.modal-box.ts-modal-hotel #hotelCountBadge{font-size:10.5px !important;}
 @media (max-width:560px){ .modal-box.ts-modal-hotel{height:96vh;max-height:96vh;} }
 .modal-box{
   background:var(--white);width:100%;max-width:620px;
@@ -2061,9 +2075,9 @@ input[type="date"]#quickStartDate:focus {
         <thead>
           <tr>
             <th style="width:9%;">Date</th>
-            <th style="width:20%;">From</th>
-            <th style="width:20%;">To</th>
-            <th style="width:35%;">Details</th>
+            <th style="width:27%;">From</th>
+            <th style="width:27%;">To</th>
+            <th style="width:21%;">Details</th>
             <th class="price-col no-print" style="width:10%;">Cost</th>
             <th class="no-print" style="width:6%;">Action</th>
           </tr>
@@ -2075,15 +2089,15 @@ input[type="date"]#quickStartDate:focus {
       <!-- 04 TRAINS -->
       <div class="ts-sec-head">
         <span class="ts-sec-num">04</span>
-        <span class="ts-sec-title" id="tsLegSecTitle">Train / Ferry / Bus</span>
+        <span class="ts-sec-title" id="tsLegSecTitle">Train / Ferry / Bus / Flight</span>
       </div>
       <table class="trip-table">
         <thead>
           <tr>
             <th style="width:9%;">Date</th>
-            <th style="width:14%;">Mode</th>
-            <th style="width:32%;">Route</th>
-            <th>Class</th>
+            <th style="width:12%;">Mode</th>
+            <th style="width:40%;">Route</th>
+            <th style="width:18%;">Class</th>
             <th class="price-col no-print" style="width:12%;">Est. Price</th>
             <th class="no-print" style="width:9%;">Action</th>
           </tr>
@@ -4195,18 +4209,22 @@ function handleLogoError(img, type) {
     }
 }
 
-function renderStars(ratingStr) {
-    if (!ratingStr) return '';
-    const count = (ratingStr.match(/⭐/g) || []).length;
-    if (!count) return ratingStr; // pass through if no emoji found
-    return '★'.repeat(count);
+// Batch 1 card 1 (owner 14 Nov): THE star rule for every star render, screen and client PDF (same text in both files).
+function tsStarsText_(rating) {
+  if (typeof rating === 'number') { var k = Math.round(rating); return (k >= 1 && k <= 5) ? '★'.repeat(k) : ''; }
+  var s = String(rating || '');
+  var e = (s.match(/⭐|★/g) || []).length;
+  if (e >= 1 && e <= 5) return '★'.repeat(e);
+  var d = s.match(/^\s*([1-5])(?:\.0)?\s*(?:\*|star|stars|-star)?\s*$/i);
+  return d ? '★'.repeat(+d[1]) : '';
 }
+function renderStars(ratingStr) { return tsStarsText_(ratingStr); }   // Batch 1 card 1 (owner 14 Nov): hotel rows = pills = PDF
 // Batch 1 card 1 (owner 12 Nov test #3): the swap window's Stars pill label. The master stores "⭐⭐⭐⭐"; the pill used to add a grey
 // ★ after it (4 gold + 1 grey). Shows the stars once, gold, like the hotel rows (renderStars); a plain "4" also reads ★★★★.
 function tsStarPillLabel_(v) {
   const t = String(v == null ? '' : v).trim();
-  const n = /^[1-5](\.0)?$/.test(t) ? Number(t[0]) : (t.match(/⭐|★/g) || []).length;
-  return n ? '<span style="color:#c8990a;">' + '★'.repeat(n) + '</span>' : t;
+  const g = tsStarsText_(t);   // Batch 1 card 1 (owner 14 Nov): the shared star rule
+  return g ? '<span style="color:#c8990a;">' + g + '</span>' : t;
 }
 
 function getVehicleCount(paxCount) {
@@ -8006,13 +8024,14 @@ function tsFlightFieldsRead_(mode) {
 // "art", "transport" is not "sport"; culture tours are landmarks, not food. First match wins, in this order. Nothing matched = 📍.
 var TS_ACTIVITY_ICONS = [
   ['🎡', ['theme park', 'disney', 'disneyland', 'amusement park', 'amusement']],
+  ['🎫', ['skip the line', 'skip-the-line']],
   ['🚌', ['hop-on', 'hop on', 'bus tour', 'bus', 'minibus', 'open-top', 'open top']],
   ['🛴', ['segway']],
   ['🚲', ['bike', 'e-bike', 'ebike', 'fatbike', 'biking', 'cycling', 'bicycle']],
-  ['🚡', ['cable car', 'gondola', 'funicular']],
+  ['🚡', ['cable car', 'funicular']],
   ['🛵', ['vespa', 'scooter', 'moped', 'tuk tuk', 'tuk-tuk']],
   ['🚗', ['tours on wheels', 'driving']],
-  ['⛵', ['cruise', 'boat', 'speedboat', 'sailboat', 'riverboat', 'catamaran', 'yacht', 'ferry', 'sailing']],
+  ['⛵', ['cruise', 'boat', 'speedboat', 'sailboat', 'riverboat', 'catamaran', 'yacht', 'ferry', 'sailing', 'gondola', 'canal']],
   ['🏄', ['water sport', 'kayak', 'kayaking', 'swim', 'swimming', 'beach', 'coast', 'coastal', 'coastline']],
   ['🍷', ['wine', 'winery', 'wineries', 'vineyard', 'winegrowers', 'tasting', 'drink', 'beer', 'brewery', 'breweries']],
   ['🍽', ['food', 'foodie', 'dining', 'cooking', 'culinary']],
@@ -8459,7 +8478,7 @@ function renderTables() {
         </tr>`;
     }
 
-    { const _t = document.getElementById('tsLegSecTitle'); if (_t) _t.textContent = tsLegSectionTitle_(selectedIntercity); }   // Batch 1 card 7
+    { const _t = document.getElementById('tsLegSecTitle'); if (_t) _t.textContent = 'Train / Ferry / Bus / Flight'; }   // Batch 1 card 7 (owner 14 Nov: the screen always names Flight)
     // Summary
     const uniqueCities = [...new Set(currentPlan.map(p => p.city.toUpperCase()))];
     const uniqueCitiesProp = [...new Set(currentPlan.map(p => p.city))];
@@ -9910,7 +9929,7 @@ function undoDelete() {
 function openIntercitySwap(legId) {
     if (!_withTransport_(() => openIntercitySwap(legId))) return;   // P0 STARTUP-PERCITY
     if (!masterData.intercity || masterData.intercity.length === 0) { showToast("No intercity data found", "error"); return; }
-    document.getElementById('modalHeading').innerText = "Select Intercity Transport";
+    document.getElementById('modalHeading').innerText = "Select Train / Ferry / Bus / Flight";   // Batch 1 card 7 (owner 14 Nov)
     const mc = document.getElementById('modalContent');
     mc.className = 'p-4 overflow-y-auto space-y-4 bg-slate-50';
     mc.style.cssText = '';
