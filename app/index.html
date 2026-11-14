@@ -557,6 +557,9 @@ textarea.pdf-input{
   background:var(--terra-bg);padding:2px 8px;border-radius:4px;
   white-space:nowrap;
 }
+/* Batch 1 card 4: on phones a long city name (GOLD COAST, MELBOURNE) ran over the Nights column. Phones only: a slightly smaller,
+   tighter tag that wraps at spaces (never mid-word). Desktop is unchanged. */
+@media (max-width:560px){ #hotelTableBody .city-tag{white-space:normal;display:inline-block;font-size:9px;letter-spacing:0;padding:2px 4px;overflow-wrap:normal;word-break:normal;} }
 .hotel-name-cell{font-size:13px;font-weight:700;color:var(--ink);}
 .hotel-stars-cell{color:#c8990a;font-size:11px;letter-spacing:1px;}
 .hotel-or-similar{font-size:10px;color:var(--ink4);font-style:italic;}
@@ -688,6 +691,15 @@ textarea.pdf-input{
   padding:16px;z-index:1000;
 }
 .modal-overlay.hidden{display:none;}
+/* Batch 1 card 3 (owner 12 Nov test #2): the hotel swap window was too small (620 px wide; 4 hotels visible at 1366x768). */
+.modal-box.ts-modal-hotel{max-width:min(960px,96vw);height:92vh;max-height:92vh;}
+@media (min-width:700px){
+  .modal-box.ts-modal-hotel #modalContent > div:first-child{display:grid;grid-template-columns:1fr 1fr;column-gap:16px;row-gap:8px;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > *{grid-column:1 / -1;margin-top:0 !important;}
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > div:has(.star-pill),
+  .modal-box.ts-modal-hotel #modalContent > div:first-child > div:has(.cat-filter){grid-column:auto;}
+}
+@media (max-width:560px){ .modal-box.ts-modal-hotel{height:96vh;max-height:96vh;} }
 .modal-box{
   background:var(--white);width:100%;max-width:620px;
   max-height:88vh;display:flex;flex-direction:column;
@@ -2063,7 +2075,7 @@ input[type="date"]#quickStartDate:focus {
       <!-- 04 TRAINS -->
       <div class="ts-sec-head">
         <span class="ts-sec-num">04</span>
-        <span class="ts-sec-title">Train / Ferry / Bus</span>
+        <span class="ts-sec-title" id="tsLegSecTitle">Train / Ferry / Bus</span>
       </div>
       <table class="trip-table">
         <thead>
@@ -4189,6 +4201,13 @@ function renderStars(ratingStr) {
     if (!count) return ratingStr; // pass through if no emoji found
     return '★'.repeat(count);
 }
+// Batch 1 card 1 (owner 12 Nov test #3): the swap window's Stars pill label. The master stores "⭐⭐⭐⭐"; the pill used to add a grey
+// ★ after it (4 gold + 1 grey). Shows the stars once, gold, like the hotel rows (renderStars); a plain "4" also reads ★★★★.
+function tsStarPillLabel_(v) {
+  const t = String(v == null ? '' : v).trim();
+  const n = /^[1-5](\.0)?$/.test(t) ? Number(t[0]) : (t.match(/⭐|★/g) || []).length;
+  return n ? '<span style="color:#c8990a;">' + '★'.repeat(n) + '</span>' : t;
+}
 
 function getVehicleCount(paxCount) {
     // Sedan fits up to 3 | Van fits up to 7
@@ -4290,6 +4309,22 @@ function calculateHotelPrice(perNightRate, nights) {
 function getPaxCount() {
     return getTravelConfigs().totalPax;
 }
+// Batch 1 card 4 (owner 12 Nov test #9): the quote tables' text boxes were 1 line tall with overflow hidden, so long hotel names,
+// room types, transfer places and train routes were cut. Each box now grows to its text: after every renderTables, while
+// typing, and when the window is resized. Display only: no value, total or hash changes.
+const TS_GROW_SEL_ = '#hotelTableBody textarea, #transferTableBody textarea, #ferryBusTableBody textarea';
+function tsTableAutoGrow_(root) {
+  (root || document).querySelectorAll(TS_GROW_SEL_).forEach(function (t) {
+    if (!t.offsetParent) return;   // hidden column (phone / client mode): leave it
+    t.style.overflow = 'hidden'; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px';
+  });
+}
+(function () {
+  const _rt = renderTables;
+  renderTables = function () { const r = _rt.apply(this, arguments); try { tsTableAutoGrow_(); } catch (e) {} return r; };
+  document.addEventListener('input', function (e) { const t = e.target; if (t && t.matches && t.matches(TS_GROW_SEL_)) tsTableAutoGrow_(t.closest('tbody')); });
+  let _rz = null; window.addEventListener('resize', function () { clearTimeout(_rz); _rz = setTimeout(function () { try { tsTableAutoGrow_(); } catch (e) {} }, 150); });
+})();
 
 // =============================================================
 // TOAST
@@ -4915,6 +4950,12 @@ function startNewQuote() {
     if (spCard) spCard.classList.add('hidden');
 
     // Re-render
+    // Batch 1 card 2 (owner 12 Nov test #13): New Quote also clears what the last quote left behind, before anything re-renders:
+    // its budget per person (was saved with the new quote), its priced add-ons (rode into the new payload + client PDF), its
+    // day-plan enhancer lines (shown by position on the new trip), its build id (joined the new quote to the old proposal),
+    // its Swap vehicle lists and its stored total.
+    { const _bp = document.getElementById('budgetPerPerson'); if (_bp) _bp.value = ''; }
+    window._tsAddOns = null; window._enhancerByCity = {}; window._lastGenId = null; window._tsXferVehOpts = null; window._lastGrandTotal = null;
     window._tsOptUpgrades = null;   // #189
     if (typeof tsSdReset_ === 'function') tsSdReset_();   // SELF-DRIVE (#166): a new quote starts with no car, no built car params
     handlePaxChange();
@@ -7939,12 +7980,79 @@ function tsDayXferRows_() {
   return (typeof selectedTransfers !== 'undefined' && Array.isArray(selectedTransfers) ? selectedTransfers : [])
     .concat(Array.isArray(window._tsFxMissing) ? window._tsFxMissing : []);
 }
+// Batch 1 card 7 (owner 12 Nov test #10): flights are listed with trains / ferries / buses. SHARED: the same text in the page
+// and in PDFGenerator.gs (twin). Section title gets ' / Flight' when a row is a flight; a flight row may carry flightNo / depTime / arrTime.
+function tsLegIsFlightMode_(t) { return /flight|plane|\bair\b/i.test(String((t && t.mode) || '')); }
+function tsLegSectionTitle_(rows) { return 'Train / Ferry / Bus' + ((rows || []).some(tsLegIsFlightMode_) ? ' / Flight' : ''); }
+function tsFlightDetail_(t) {
+  if (!tsLegIsFlightMode_(t)) return '';
+  var p = [], no = String(t.flightNo || '').trim(), d = String(t.depTime || '').trim(), a = String(t.arrTime || '').trim();
+  if (no) p.push('Flight ' + no);
+  if (d || a) p.push((d || '?') + ' \u2192 ' + (a || '?'));
+  return p.join(' \u00b7 ');
+}
+function tsFlightFieldsSync_() { const m = document.getElementById('trainMode'), f = document.getElementById('trainFlightFields'); if (m && f) f.style.display = tsLegIsFlightMode_({ mode: m.value }) ? '' : 'none'; }
+function tsFlightFieldsRead_(mode) {
+  if (!tsLegIsFlightMode_({ mode: mode })) return {};
+  const v = (id) => String((document.getElementById(id) || {}).value || '').trim(), o = {};
+  if (v('trainFlightNo')) o.flightNo = v('trainFlightNo'); if (v('trainDep')) o.depTime = v('trainDep'); if (v('trainArr')) o.arrTime = v('trainArr');
+  return o;
+}
+// Batch 1 card 5 (owner 12 Nov test #11): ONE icon for a tour, the same on screen and in the client PDF (SHARED: the same text in the
+// page and in PDFGenerator.gs). Keywords match whole words (plurals allowed), so "skip" is not "ski", "Montmartre" / "party" are not
+// "art", "transport" is not "sport"; culture tours are landmarks, not food. First match wins, in this order. Nothing matched = 📍.
+var TS_ACTIVITY_ICONS = [
+  ['🎡', ['theme park', 'disney', 'disneyland', 'amusement park', 'amusement']],
+  ['🚌', ['hop-on', 'hop on', 'bus tour', 'bus', 'minibus', 'open-top', 'open top']],
+  ['🛴', ['segway']],
+  ['🚲', ['bike', 'e-bike', 'ebike', 'fatbike', 'biking', 'cycling', 'bicycle']],
+  ['🚡', ['cable car', 'gondola', 'funicular']],
+  ['🛵', ['vespa', 'scooter', 'moped', 'tuk tuk', 'tuk-tuk']],
+  ['🚗', ['tours on wheels', 'driving']],
+  ['⛵', ['cruise', 'boat', 'speedboat', 'sailboat', 'riverboat', 'catamaran', 'yacht', 'ferry', 'sailing']],
+  ['🏄', ['water sport', 'kayak', 'kayaking', 'swim', 'swimming', 'beach', 'coast', 'coastal', 'coastline']],
+  ['🍷', ['wine', 'winery', 'wineries', 'vineyard', 'winegrowers', 'tasting', 'drink', 'beer', 'brewery', 'breweries']],
+  ['🍽', ['food', 'foodie', 'dining', 'cooking', 'culinary']],
+  ['🖼', ['museum', 'gallery', 'galleries', 'art']],
+  ['🏛', ['landmark', 'historical', 'architecture', 'unesco', 'culture', 'cultural']],
+  ['🎵', ['concert', 'opera', 'music', 'orchestra']],
+  ['🎭', ['theatre', 'theater']],
+  ['🎪', ['live show', 'flamenco', 'gladiator', 'dinner show']],
+  ['🌙', ['night', 'nightlife', 'evening', 'show']],
+  ['❄️', ['arctic', 'northern lights', 'aurora', 'husky', 'huskies', 'reindeer', 'snow', 'snowmobile', 'snowmobiling', 'snowshoe', 'snowshoeing', 'ski', 'skiing', 'winter']],
+  ['⛰', ['mountain', 'hiking', 'trek', 'trekking', 'adventure']],
+  ['🌿', ['nature', 'park', 'garden', 'wildlife']],
+  ['🚶', ['walking', 'walk tour']],
+  ['🗺', ['city tour', 'day trip', 'day tour']],
+  ['👨‍👩‍👧', ['family', 'kids', 'children']],
+  ['💆', ['spa', 'wellness', 'relax']],
+  ['💑', ['romantic', 'romance']],
+  ['🛍', ['shopping', 'market']],
+  ['🏟', ['sport', 'game', 'stadium']],
+  ['📷', ['photo', 'photography', 'photoshoot']],
+  ['🎫', ['entry', 'ticket']],
+  ['⭐', ['must-do', 'must do', 'popular']],
+  ['💎', ['hidden', 'gems']]
+];
+function tsActivityIcon_(c) {
+  var s = ' ' + String(c || '').toLowerCase() + ' ';
+  for (var i = 0; i < TS_ACTIVITY_ICONS.length; i++) {
+    var words = TS_ACTIVITY_ICONS[i][1];
+    for (var j = 0; j < words.length; j++) {
+      var w = words[j].replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
+      if (new RegExp('[^a-zà-ÿ]' + w + '(s|es)?[^a-zà-ÿ]').test(s)) return TS_ACTIVITY_ICONS[i][0];
+    }
+  }
+  return '📍';
+}
+// Transport legs (day lines): flight ✈️ · ferry / boat ⛴️ · bus / coach 🚌 · car / taxi / transfer / van / other 🚐 · train (and blank) 🚆.
 function tsLegIcon_(mode) {
   var m = String(mode == null ? '' : mode).toLowerCase();
-  if (/flight|plane/.test(m)) return '\u2708\ufe0f';
-  if (/ferry|boat/.test(m)) return '\u26f4\ufe0f';
-  if (/bus|coach/.test(m)) return '\ud83d\ude8c';
-  return '\ud83d\ude86';
+  if (/flight|plane/.test(m)) return '✈️';
+  if (/ferry|boat/.test(m)) return '⛴️';
+  if (/bus|coach/.test(m)) return '🚌';
+  if (/other|car|taxi|transfer|van|drive/.test(m)) return '🚐';
+  return '🚆';
 }
 function tsTrainPriceOk_(v) {
   var s = String(v == null ? '' : v).trim();
@@ -8084,56 +8192,7 @@ function renderTables() {
                 bottomLines += `<div class="day-note-depart">${tsCarDayText_('last', item.city, null, curDate, 'After breakfast check out and transfer to the airport, tour ends')}</div>`;   // #188
             }
 
-            const _catEmoji = c => {
-            const s = (c||'').toLowerCase();
-            // Theme parks FIRST — must beat the `park` substring in the nature line
-            if(s.includes('theme park')||s.includes('disney')||s.includes('amusement')) return '🎡';
-            // Transport / wheels — before night/show so "Night Bus" hits 🚌
-            if(s.includes('hop-on')||s.includes('hop on')||s.includes('bus tour')||s.includes('bus')||s.includes('open-top')) return '🚌';
-            if(s.includes('segway')) return '🛴';
-            if(s.includes('bike')||s.includes('cycling')) return '🚲';
-            if(s.includes('cable')||s.includes('gondola')||s.includes('funicular')) return '🚡';
-            if(s.includes('vespa')||s.includes('scooter')||s.includes('moped')||s.includes('tuk tuk')||s.includes('tuk-tuk')) return '🛵';
-            if(s.includes('tours on wheels')||s.includes('driving')) return '🚗';
-            // Water
-            if(s.includes('cruise')||s.includes('boat')||s.includes('ferry')||s.includes('sailing')) return '⛵';
-            if(s.includes('water sport')||s.includes('kayak')||s.includes('swim')||s.includes('beach')||s.includes('coast')) return '🏄';
-            // Food / drink
-            if(s.includes('wine')||s.includes('tasting')||s.includes('drink')||s.includes('beer')) return '🍷';
-            if(s.includes('food')||s.includes('cultur')||s.includes('dining')||s.includes('cooking')||s.includes('culinary')) return '🍽';
-            // Museums / landmarks
-            if(s.includes('museum')||s.includes('gallery')||s.includes('art')) return '🖼';
-            if(s.includes('landmark')||s.includes('historical')||s.includes('architecture')||s.includes('unesco')) return '🏛';
-            // Shows / entertainment — SPECIFIC types first, generic "show" last
-            if(s.includes('concert')||s.includes('opera')||s.includes('music')||s.includes('orchestra')) return '🎵';
-            if(s.includes('theatre')||s.includes('theater')) return '🎭';
-            if(s.includes('live show')||s.includes('flamenco')||s.includes('gladiator')||s.includes('dinner show')) return '🎪';
-            if(s.includes('night')||s.includes('evening')||s.includes('nightlife')||s.includes('show')) return '🌙';
-            // Adventure / nature
-            if(s.includes('arctic')||s.includes('northern lights')||s.includes('snow')||s.includes('ski')||s.includes('winter')) return '❄️';
-            if(s.includes('mountain')||s.includes('hiking')||s.includes('trek')||s.includes('adventure')) return '⛰';
-            if(s.includes('nature')||s.includes('park')||s.includes('garden')||s.includes('wildlife')) return '🌿';
-            // Walking / city tours
-            if(s.includes('walking')||s.includes('walk tour')) return '🚶';
-            if(s.includes('city tour')||s.includes('day trip')||s.includes('day tour')) return '🗺';
-            // Family
-            if(s.includes('family')||s.includes('kids')||s.includes('children')) return '👨‍👩‍👧';
-            // Wellness / romance
-            if(s.includes('spa')||s.includes('wellness')||s.includes('relax')) return '💆';
-            if(s.includes('romantic')||s.includes('romance')) return '💑';
-            // Shopping
-            if(s.includes('shopping')||s.includes('market')) return '🛍';
-            // Sports
-            if(s.includes('sport')||s.includes('game')||s.includes('stadium')) return '🏟';
-            // Photography
-            if(s.includes('photo')) return '📷';
-            // Entry tickets (generic)
-            if(s.includes('entry')||s.includes('ticket')) return '🎫';
-            // Catch-alls
-            if(s.includes('must-do')||s.includes('must do')||s.includes('popular')) return '⭐';
-            if(s.includes('hidden')||s.includes('gems')) return '💎';
-            return '📍'; // default
-        };
+            const _catEmoji = c => tsActivityIcon_(c);   // Batch 1 card 5: the shared tour icon (= the client PDF)
         // ENHANCER — design 2b, "tethered to the tour". Computed BEFORE the row map so a
         // row can own its own footer; splicing markup into a joined HTML string afterwards
         // would be brittle and would break the moment the row template changes.
@@ -8371,15 +8430,15 @@ function renderTables() {
                         style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;background:var(--terra-bg);color:var(--terra);border:none;padding:2px 10px;border-radius:4px;outline:none;display:inline-block;width:auto;max-width:100px;text-align:center;cursor:pointer;">
                 </td>
                 <td class="p-2 border">
-                    <input type="text" value="${ic.fromTo}" onchange="editIntercity(${idx}, 'fromTo', this.value)"
-                        class="pdf-input w-full outline-none font-bold"
-                        style="font-size:13px;border:none;background:transparent;color:var(--ink);">
+                    <textarea rows="1" onchange="editIntercity(${idx}, 'fromTo', this.value)"
+                        class="pdf-input w-full outline-none font-bold resize-none overflow-hidden"
+                        style="font-size:13px;border:none;background:transparent;color:var(--ink);">${ic.fromTo}</textarea>
                 </td>
-                <td class="p-2 border">${_clsMapped
+                <td class="p-2 border">${tsFlightDetail_(ic) ? `<div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:2px;">${tsFlightDetail_(ic)}</div>` : ''}${_clsMapped
                     ? `<span style="font-size:12px;color:var(--ink4);font-style:italic;">${_clsLabel}</span>`
-                    : `<input type="text" value="${ic.notes || ''}" placeholder="Scheduled" onchange="editIntercity(${idx}, 'notes', this.value)"
-                        class="pdf-input w-full outline-none"
-                        style="font-size:12px;border:none;background:transparent;color:var(--ink4);font-style:italic;">`}
+                    : `<textarea rows="1" placeholder="Scheduled" onchange="editIntercity(${idx}, 'notes', this.value)"
+                        class="pdf-input w-full outline-none resize-none overflow-hidden"
+                        style="font-size:12px;border:none;background:transparent;color:var(--ink4);font-style:italic;">${ic.notes || ''}</textarea>`}
                 </td>
                 <td class="price-col no-print p-2 border" style="font-weight:700;color:var(--ink);">
                     ${priceDisplay}
@@ -8392,11 +8451,12 @@ function renderTables() {
         }).join('') + `
         <tr class="no-print">
             <td colspan="6" class="p-2 border">
-                <button onclick="openAddTrainDirect()" class="act-add-btn">+ Add Train / Ferry / Bus</button>
+                <button onclick="openAddTrainDirect()" class="act-add-btn">+ Add Train / Ferry / Bus / Flight</button>
             </td>
         </tr>`;
     }
 
+    { const _t = document.getElementById('tsLegSecTitle'); if (_t) _t.textContent = tsLegSectionTitle_(selectedIntercity); }   // Batch 1 card 7
     // Summary
     const uniqueCities = [...new Set(currentPlan.map(p => p.city.toUpperCase()))];
     const uniqueCitiesProp = [...new Set(currentPlan.map(p => p.city))];
@@ -9922,6 +9982,8 @@ function editIntercity(index, field, value) {
 // =============================================================
 // HOTEL SWAP MODAL
 // =============================================================
+// Batch 1 card 6: one hotel row = name + room type + meals (the master repeats a hotel name with other rooms / meals).
+function tsHotelRowKey_(h) { return [h && h.name, h && (h.roomType || h.type), h && h.meals].map(function (x) { return String(x || '').toLowerCase().trim(); }).join('|'); }
 function openHotelSwap(routeId) {
     const item = currentPlan.find(p => p.id === routeId);
     const city = item.city;
@@ -9932,7 +9994,12 @@ function openHotelSwap(routeId) {
     const minPrice   = options.length > 0 ? Math.min(...options.map(h => Number(h.cost))) : 0;
     const categories = [...new Set(options.map(h => h.category).filter(Boolean))].sort();
     const stars      = [...new Set(options.map(h => h.starRating).filter(Boolean))].sort();
-    window._currentHotelCost  = Number(item.hotel?.cost) || 0;
+    { const _c = getTravelConfigs(), _rm = _c.roomsRequired || 1, _pf = _c.pricingFactor || 1;
+      // Batch 1 card 6: the table's hotel cost is per pricing unit (selectHotel converts the master's per-room-night rate);
+      // the window compares it with master rates, so convert it back. A stay = rate x nights x rooms (= the table's Total Stay).
+      window._currentHotelCost  = (Number(item.hotel?.cost) || 0) * _pf / _rm;
+      window._currentHotelRooms = _rm;
+      window._currentHotelKey   = tsHotelRowKey_(item.hotel || {}); }
     window._currentHotelName  = (item.hotel?.name || '').toLowerCase();
     window._currentHotelNights = _nights;
 
@@ -9950,7 +10017,7 @@ function openHotelSwap(routeId) {
                 <label style="font-size:8px;font-weight:700;color:#7a6458;text-transform:uppercase;letter-spacing:.5px;">Stars</label>
                 <div class="flex flex-wrap gap-1 mt-1">
                     <button onclick="selectStarPill(this,'',${routeId},'${city}')" class="star-pill warm-pill active">All</button>
-                    ${stars.map(s => `<button onclick="selectStarPill(this,'${s}',${routeId},'${city}')" class="star-pill warm-pill">${s}<span style="color:#ddd;">★</span></button>`).join('')}
+                    ${stars.map(s => `<button onclick="selectStarPill(this,'${s}',${routeId},'${city}')" class="star-pill warm-pill">${tsStarPillLabel_(s)}</button>`).join('')}
                 </div>
                 <input type="hidden" id="starFilter" value="">
             </div>
@@ -9973,6 +10040,7 @@ function openHotelSwap(routeId) {
         <div id="currentHotelBar" style="background:#f3ede3;border-bottom:1px solid #e8ddd0;padding:8px 16px;display:none!important;" class="flex-shrink-0 flex justify-between items-center"></div>
         <div id="hotelListContainer" class="overflow-y-auto flex-1 p-3 space-y-2"></div>`;
     applyHotelFilters(routeId, city);
+    { const _b = document.querySelector('#swapModal .modal-box'); if (_b) _b.classList.add('ts-modal-hotel'); }   // Batch 1 card 3
     toggleModal(true);
 }
 
@@ -9998,10 +10066,11 @@ function applyHotelFilters(routeId, city) {
     const categoryFilter = document.getElementById('categoryFilter')?.value || '';
     const allCityHotels  = (masterData.hotels || []).filter(h => h.city.toLowerCase() === city.toLowerCase());
     const currentName    = window._currentHotelName || '';
+    const _tsSameName    = allCityHotels.filter(o => (o.name || '').toLowerCase() === currentName).length;   // Batch 1 card 6
     const filtered = allCityHotels.filter(h => {
         const cost = Number(h.cost);
         const hName = (h.name || '').toLowerCase();
-        return hName !== currentName &&   // exclude currently selected hotel
+        return (hName !== currentName || (_tsSameName > 1 && tsHotelRowKey_(h) !== (window._currentHotelKey || ''))) &&   // exclude the current hotel ROW; its other room / meal rows stay (Batch 1 card 6)
                hName.includes(searchTerm) &&
                cost >= minPrice && cost <= maxPrice &&
                (!starFilter     || h.starRating === starFilter) &&
@@ -10013,8 +10082,8 @@ function applyHotelFilters(routeId, city) {
     const nights       = window._currentHotelNights || 1;
 
     function diffLabel(h) {
-        if (currentCost === 0) return `<div class="text-xs font-black text-slate-700">₹${(Number(h.cost)*nights).toLocaleString('en-IN')}</div><div class="text-[8px] text-slate-400">${nights}N total</div>`;
-        const diff   = Math.round((Number(h.cost) - currentCost) * nights);
+        if (currentCost === 0) return `<div class="text-xs font-black text-slate-700">₹${Math.round(Number(h.cost)*nights*(window._currentHotelRooms || 1)).toLocaleString('en-IN')}</div><div class="text-[8px] text-slate-400">${nights}N total</div>`;
+        const diff   = Math.round((Number(h.cost) - currentCost) * nights * (window._currentHotelRooms || 1));   // Batch 1 card 6: = the change in the table's Total Stay
         const sign   = diff >= 0 ? '+' : '−';
         const colour = diff > 0 ? '#dc2626' : diff < 0 ? '#16a34a' : '#64748b';
         return `<div style="font-size:12px;font-weight:900;color:${colour};">${sign}₹${Math.abs(diff).toLocaleString('en-IN')}</div>
@@ -10022,7 +10091,7 @@ function applyHotelFilters(routeId, city) {
     }
 
     function hotelCard(h, highlight) {
-        const origIdx = allCityHotels.findIndex(o => o.name === h.name);
+        const origIdx = allCityHotels.indexOf(h);   // Batch 1 card 6: the exact row clicked (a name can repeat with another room / meals)
         const hlStyle = highlight ? 'border:1px solid rgba(90,122,92,.4);background:#f0f5f0;' : '';
         return `
         <div onclick="selectHotel(${routeId},${origIdx},${JSON.stringify(h.city || '').replace(/"/g,'&quot;')})"
@@ -10052,7 +10121,7 @@ function applyHotelFilters(routeId, city) {
                     <div style="font-size:8px;font-weight:700;color:#7a6458;text-transform:uppercase;margin-bottom:1px;">Currently Selected</div>
                     <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#2c1810;">${curHotel.name} <span style="font-size:9px;color:#c8990a;">${renderStars(curHotel.starRating)}</span></div>
                 </div>
-                <div style="text-align:right;font-size:11px;font-weight:900;color:#b85c38;">₹${(currentCost*nights).toLocaleString('en-IN')}<div style="font-size:8px;font-weight:400;color:#7a6458;">${nights}N total</div></div>`;
+                <div style="text-align:right;font-size:11px;font-weight:900;color:#b85c38;">₹${Math.round(currentCost*nights*(window._currentHotelRooms || 1)).toLocaleString('en-IN')}<div style="font-size:8px;font-weight:400;color:#7a6458;">${nights}N total</div></div>`;
         }
     }
 
@@ -10422,7 +10491,7 @@ function formatDate(d) {
     return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
-function toggleModal(s) { document.getElementById('swapModal').classList.toggle('hidden', !s); }
+function toggleModal(s) { document.getElementById('swapModal').classList.toggle('hidden', !s); if (!s) { const _b = document.querySelector('#swapModal .modal-box'); if (_b) _b.classList.remove('ts-modal-hotel'); } }   // Batch 1 card 3
 function closeModal()    { window._swapTarget = null; toggleModal(false); }
 
 // =============================================================
@@ -10639,7 +10708,7 @@ function addManualTourDirect(planIdx, dayIdx) {
 // ADD TRAIN / FERRY / BUS MANUALLY
 // =============================================================
 function openAddTrainDirect() {
-    document.getElementById('modalHeading').innerText = 'Add Train / Ferry / Bus';
+    document.getElementById('modalHeading').innerText = 'Add Train / Ferry / Bus / Flight';
     const mc = document.getElementById('modalContent');
     mc.className = 'p-4 overflow-y-auto space-y-4 bg-slate-50';
     mc.style.cssText = '';
@@ -10665,7 +10734,7 @@ function openAddTrainDirect() {
                 </div>
                 <div>
                     <label class="text-[8px] font-bold text-slate-400 uppercase">Mode</label>
-                    <select id="trainMode" class="w-full p-2 border rounded text-xs outline-none mt-0.5">
+                    <select id="trainMode" onchange="tsFlightFieldsSync_()" class="w-full p-2 border rounded text-xs outline-none mt-0.5">
                         <option value="Train">Train</option>
                         <option value="Ferry">Ferry</option>
                         <option value="Bus">Bus</option>
@@ -10688,6 +10757,13 @@ function openAddTrainDirect() {
                 <div class="mt-2">
                     <label class="text-[8px] font-bold text-slate-400 uppercase">Schedule / Notes</label>
                     <input type="text" id="trainNotes" placeholder="e.g. 08:30 Trenitalia FR9613, 1h 30m" class="w-full p-2 border rounded text-xs outline-none mt-0.5">
+                </div>
+                <div id="trainFlightFields" class="mt-2" style="display:none;">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div><label class="text-[8px] font-bold text-slate-400 uppercase">Flight no.</label><input type="text" id="trainFlightNo" placeholder="e.g. QF 401" class="w-full p-2 border rounded text-xs outline-none mt-0.5"></div>
+                        <div><label class="text-[8px] font-bold text-slate-400 uppercase">Departs</label><input type="time" id="trainDep" class="w-full p-2 border rounded text-xs outline-none mt-0.5"></div>
+                        <div><label class="text-[8px] font-bold text-slate-400 uppercase">Arrives</label><input type="time" id="trainArr" class="w-full p-2 border rounded text-xs outline-none mt-0.5"></div>
+                    </div>
                 </div>
                 <div class="mt-2">
                     <label class="text-[8px] font-bold text-slate-400 uppercase">Total price for all travellers (₹)</label>
@@ -10756,7 +10832,8 @@ function confirmAddTrain() {
         fromTo:   route,
         notes:    notes,
         price:    paxCount > 0 ? price / paxCount : price,
-        isManual: true
+        isManual: true,
+        ...tsFlightFieldsRead_(mode)   // Batch 1 card 7: flightNo / depTime / arrTime, only on a Flight row and only when filled
     });
     renderTables();
     calculateBudgetInvestment();
@@ -12114,14 +12191,14 @@ async function downloadExcel() {
 
     // 04. Intercity
     sheet.addRow([]);
-    const icHead = sheet.addRow(['04. TRAIN / FERRY / BUS']); icHead.font = { bold:true, size:12, color:{argb:'FF1E40AF'} };
+    const icHead = sheet.addRow(['04. ' + tsLegSectionTitle_(selectedIntercity).toUpperCase()]); icHead.font = { bold:true, size:12, color:{argb:'FF1E40AF'} };
     const icTableHead = sheet.addRow(['Date','Mode','Sector (From - To)','Schedule/Notes','Price (Total)']);
     icTableHead.eachCell(c => { c.fill = headerFill; c.font = boldFont; c.border = borderStyle; });
     selectedIntercity.forEach(ic => {
         const price = Math.round(Number(ic.price || 0) * paxCount);
         const row   = sheet.addRow([
             formatDate(ic.date), (ic.mode || '').toUpperCase(),
-            (ic.fromTo || '').toUpperCase(), ic.notes || '',
+            (ic.fromTo || '').toUpperCase(), [tsFlightDetail_(ic), ic.notes || ''].filter(Boolean).join(' \u00b7 '),
             `₹${price.toLocaleString()}`
         ]);
         row.eachCell(c => { c.border = borderStyle; c.alignment = { wrapText: true }; });
