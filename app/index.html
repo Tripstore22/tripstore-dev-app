@@ -4801,7 +4801,9 @@ async function handleRoleChange(username, oldRole, newRole, selectEl) {
         selectEl.value = oldRole;
         return;
     }
-    if (!confirm(`Change role for ${username} from ${oldRole} to ${newRole}?`)) {
+    if (!confirm(newRole === 'ARCHIVED'   // Batch 1 card 9
+        ? `Archive ${username}? They can no longer log in and their open session ends now. Their quotes and wallet stay. You can set another role later to restore access.`
+        : `Change role for ${username} from ${oldRole} to ${newRole}?`)) {
         selectEl.value = oldRole;
         return;
     }
@@ -4855,7 +4857,7 @@ async function loadAgentManagement(opts) {
               : '—';
           const statusCell = a.role === 'PENDING'
             ? `<button onclick="openApproveAgentModal('${esc(a.username)}',{fullName:'${esc(a.fullName)}',mobile:'${esc(a.mobile)}',email:'${esc(a.email)}',role:'PENDING'})" style="background:#a55b3a;color:#fff;border:none;border-radius:14px;padding:4px 12px;font-size:10px;font-weight:700;cursor:pointer;">Approve</button>`
-            : `<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:${a.status==='Active'?'#dcfce7':'#fef9c3'};color:${a.status==='Active'?'#166534':'#854d0e'};">${a.status}</span>`;
+            : `<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:${a.status==='Active'?'#dcfce7':a.status==='Archived'?'#e2e8f0':'#fef9c3'};color:${a.status==='Active'?'#166534':a.status==='Archived'?'#475569':'#854d0e'};">${a.status}</span>`;
           return `
           <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:10px 12px;font-size:12px;font-weight:700;color:#0f172a;">${a.username}</td>
@@ -4869,6 +4871,7 @@ async function loadAgentManagement(opts) {
                 <option value="INTERNAL"     ${a.role==='INTERNAL'?'selected':''}>INTERNAL</option>
                 <option value="DATA_MANAGER" ${a.role==='DATA_MANAGER'?'selected':''}>DATA_MANAGER</option>
                 <option value="ADMIN"        ${a.role==='ADMIN'?'selected':''}>ADMIN</option>
+                <option value="ARCHIVED"     ${a.role==='ARCHIVED'?'selected':''}>ARCHIVED</option>
               </select>
             </td>
             <td style="padding:10px 12px;text-align:center;">${statusCell}</td>
