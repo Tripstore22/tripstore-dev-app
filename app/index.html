@@ -713,6 +713,50 @@ textarea.pdf-input{
 .modal-box.ts-modal-hotel #modalContent > div:first-child > div:first-child{font-size:11.5px !important;}
 .modal-box.ts-modal-hotel #modalSearch, .modal-box.ts-modal-hotel #minPriceInput, .modal-box.ts-modal-hotel #maxPriceInput{font-size:12.5px !important;}
 .modal-box.ts-modal-hotel #hotelCountBadge{font-size:10.5px !important;}
+/* Hotel swap window redesign (owner APPROVED 16 Nov, #207): one filter bar, 2 single-line rows per hotel */
+.modal-box.ts-modal-hotel .modal-footer{display:none;}
+.modal-box.ts-modal-hotel .modal-head{padding-top:10px;padding-bottom:10px;}
+.modal-box.ts-modal-hotel #modalContent > div.tsw-bar{display:flex !important;flex-wrap:wrap;align-items:flex-end;gap:10px 14px;padding:10px 16px !important;background:#faf7f2;border-bottom:1px solid #e8ddd0;}
+.tsw-f[hidden]{display:none !important;}
+.tsw-f{display:flex;flex-direction:column;gap:3px;flex:1 1 0;min-width:0;}
+.tsw-f > span{font-size:10px;font-weight:700;color:#7a6458;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tsw-search{flex:1.7 1 0;}
+.tsw-f input,.tsw-f select{width:100%;height:32px;padding:0 9px;border:1px solid #e8ddd0;border-radius:7px;font-size:13px;background:#fff;color:#2c1810;outline:none;}
+.tsw-price{flex:1.4 1 0;}
+.tsw-mm input{padding:0 6px;-moz-appearance:textfield;}
+.tsw-mm input::-webkit-inner-spin-button,.tsw-mm input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+.tsw-mm{display:flex;align-items:center;gap:5px;}
+.tsw-mm i{font-style:normal;color:#7a6458;}
+.tsw-meals{flex:2 1 0;}
+.tsw-chips{display:flex;gap:4px;height:32px;align-items:center;}
+.tsw-chips .warm-pill{font-size:11px;padding:4px 9px;white-space:nowrap;}
+.tsw-count{flex:0 0 auto;height:32px;display:flex;align-items:center;}
+.tsw-count #hotelCountBadge{background:#b85c38;color:#fff;padding:5px 11px;border-radius:20px;font-size:12px !important;font-weight:700;white-space:nowrap;}
+.modal-box.ts-modal-hotel #hotelListContainer{padding:6px 14px 10px !important;background:#fff;}
+.modal-box.ts-modal-hotel #hotelListContainer > * + *{margin-top:0 !important;}
+.modal-box.ts-modal-hotel .hotel-swap-item.tsw-row{display:block;padding:3px 12px;background:#fff;border:0;border-bottom:1px solid #eee6da;border-radius:0;}
+.modal-box.ts-modal-hotel .hotel-swap-item.tsw-row:hover{background:#faf5ee;}
+.modal-box.ts-modal-hotel .hotel-swap-item.tsw-near{background:#f2f7f2;box-shadow:inset 3px 0 0 #7fa383;}
+.modal-box.ts-modal-hotel .hotel-swap-item.tsw-near:hover{background:#e9f2e9;}
+.modal-box.ts-modal-hotel #hotelListContainer > .tsw-row + :not(.tsw-row){margin-top:14px !important;}
+.tsw-l1{line-height:17px;}
+.tsw-l2{line-height:15px;}
+.tsw-l1,.tsw-l2{display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap;}
+.tsw-name{font-size:14px;font-weight:700;color:#2c1810;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.tsw-stars{font-size:12px;color:#c8990a;flex-shrink:0;letter-spacing:1px;}
+.tsw-l2{font-size:11.5px;color:#7a6458;}
+.tsw-cat{flex-shrink:0;font-size:10.5px;background:#f5f2ee;border:1px solid #d0cfc9;color:#5b4a40;padding:0 6px;border-radius:3px;}
+.tsw-room{overflow:hidden;text-overflow:ellipsis;min-width:0;font-style:italic;}
+.tsw-meal{flex-shrink:0;font-size:10.5px;background:#eef4ee;border:1px solid #c9dcc9;color:#35603a;padding:0 6px;border-radius:3px;}
+.tsw-diff{margin-left:auto;flex-shrink:0;font-size:12px;}
+.tsw-diff small{font-size:10.5px;color:#7a6458;}
+#currentHotelBar.tsw-cur{padding:4px 16px !important;}
+#currentHotelBar.tsw-cur > div > div:first-child{display:none;}
+#currentHotelBar.tsw-cur > div:last-child > div{display:inline;margin-left:6px;}
+@media (max-width:560px){
+  .tsw-f{flex:1 1 40%;} .tsw-search{flex:1 1 100%;} .tsw-price{flex:1 1 55%;} .tsw-meals{flex:1 1 100%;}
+  .tsw-chips{overflow-x:auto;}
+}
 @media (max-width:560px){ .modal-box.ts-modal-hotel{height:96vh;max-height:96vh;} }
 .modal-box{
   background:var(--white);width:100%;max-width:620px;
@@ -10007,6 +10051,21 @@ function editIntercity(index, field, value) {
 // =============================================================
 // Batch 1 card 6: one hotel row = name + room type + meals (the master repeats a hotel name with other rooms / meals).
 function tsHotelRowKey_(h) { return [h && h.name, h && (h.roomType || h.type), h && h.meals].map(function (x) { return String(x || '').toLowerCase().trim(); }).join('|'); }
+// ── Hotel swap window redesign (owner APPROVED 16 Nov, #207) ──
+// Meal chips + the meal label on each row stay hidden until the meal data exists (Mihir's import fix); then set this to true.
+// Meals are shown in the sheet's own words (Half Board, Full Board, All Inclusive, Dinner: never mapped to Breakfast); a blank
+// meal shows "Meal plan to be confirmed" (CC rulings, via Mihir 16 Nov).
+var TS_SWAP_MEALS_ON = false;
+function tsHotelMeal_(h) { return String((h && (h.mealPlan || h.meals)) || '').trim(); }
+// one category per spelling: "Ultra Luxury" = "Ultra-Luxury" = "ultra luxury"
+function tsCatKey_(c) { return String(c || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+// [{ key, label }] sorted by key; the label is the spelling used most (ties: alphabetical)
+function tsCatList_(rows) {
+  const by = {};
+  rows.forEach(h => { const k = tsCatKey_(h.category); if (!k) return; (by[k] = by[k] || {}); by[k][h.category] = (by[k][h.category] || 0) + 1; });
+  return Object.keys(by).sort().map(k => ({ key: k, label: Object.keys(by[k]).sort((a, b) => by[k][b] - by[k][a] || a.localeCompare(b))[0] }));
+}
+function tsEscAttr_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 function openHotelSwap(routeId) {
     const item = currentPlan.find(p => p.id === routeId);
     const city = item.city;
@@ -10015,7 +10074,8 @@ function openHotelSwap(routeId) {
     const options    = (masterData.hotels || []).filter(h => h.city.toLowerCase() === city.toLowerCase());
     const maxPrice   = options.length > 0 ? Math.max(...options.map(h => Number(h.cost))) : 100000;
     const minPrice   = options.length > 0 ? Math.min(...options.map(h => Number(h.cost))) : 0;
-    const categories = [...new Set(options.map(h => h.category).filter(Boolean))].sort();
+    const categories = tsCatList_(options);   // owner 16 Nov: "Ultra Luxury" = "Ultra-Luxury"
+    const _meals     = TS_SWAP_MEALS_ON ? tsCatList_(options.map(h => ({ category: tsHotelMeal_(h) }))) : [];   // hidden until the meal data exists
     const stars      = [...new Set(options.map(h => h.starRating).filter(Boolean))].sort();
     { const _c = getTravelConfigs(), _rm = _c.roomsRequired || 1, _pf = _c.pricingFactor || 1;
       // Batch 1 card 6: the table's hotel cost is per pricing unit (selectHotel converts the master's per-room-night rate);
@@ -10031,34 +10091,19 @@ function openHotelSwap(routeId) {
     mc.className = 'flex flex-col bg-slate-50 overflow-hidden';
     mc.style.cssText = 'flex:1;min-height:0;';
     mc.innerHTML = `
-        <div style="background:#faf7f2;border-bottom:1px solid #e8ddd0;padding:12px 16px;" class="flex-shrink-0 space-y-2">
-            <div style="font-size:10px;color:#7a6458;font-weight:600;">${city} · ${_nights} night${_nights !== 1 ? 's' : ''}</div>
-            <input type="text" id="modalSearch" placeholder="Search hotel name..."
-                oninput="applyHotelFilters(${routeId},'${city}')"
-                style="width:100%;padding:6px 10px;border:1px solid #e8ddd0;border-radius:6px;font-size:11px;outline:none;background:#fff;">
-            <div>
-                <label style="font-size:8px;font-weight:700;color:#7a6458;text-transform:uppercase;letter-spacing:.5px;">Stars</label>
-                <div class="flex flex-wrap gap-1 mt-1">
-                    <button onclick="selectStarPill(this,'',${routeId},'${city}')" class="star-pill warm-pill active">All</button>
-                    ${stars.map(s => `<button onclick="selectStarPill(this,'${s}',${routeId},'${city}')" class="star-pill warm-pill">${tsStarPillLabel_(s)}</button>`).join('')}
-                </div>
-                <input type="hidden" id="starFilter" value="">
-            </div>
-            <div>
-                <label style="font-size:8px;font-weight:700;color:#7a6458;text-transform:uppercase;letter-spacing:.5px;">Category</label>
-                <div class="flex flex-wrap gap-1 mt-1">
-                    <button onclick="selectCatFilter(this,'',${routeId},'${city}')" class="cat-filter warm-pill active">All</button>
-                    ${categories.map(c => `<button onclick="selectCatFilter(this,${JSON.stringify(c).replace(/"/g,'&quot;')},${routeId},'${city}')" class="cat-filter warm-pill">${c}</button>`).join('')}
-                </div>
-                <input type="hidden" id="categoryFilter" value="">
-            </div>
-            <div class="flex items-center gap-2">
-                <span style="font-size:8px;font-weight:700;color:#7a6458;text-transform:uppercase;white-space:nowrap;">₹ Min</span>
-                <input type="number" id="minPriceInput" value="${minPrice}" oninput="applyHotelFilters(${routeId},'${city}')" style="flex:1;padding:4px 6px;border:1px solid #e8ddd0;border-radius:5px;font-size:11px;outline:none;">
-                <span style="font-size:8px;font-weight:700;color:#7a6458;text-transform:uppercase;white-space:nowrap;">Max</span>
-                <input type="number" id="maxPriceInput" value="${maxPrice}" oninput="applyHotelFilters(${routeId},'${city}')" style="flex:1;padding:4px 6px;border:1px solid #e8ddd0;border-radius:5px;font-size:11px;outline:none;">
-                <span id="hotelCountBadge" style="background:#b85c38;color:#fff;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;white-space:nowrap;">0 Found</span>
-            </div>
+        <div class="tsw-bar flex-shrink-0">   <!-- owner 16 Nov: one full-width filter bar -->
+            <label class="tsw-f tsw-search"><span>Search · ${city} · ${_nights}N</span>
+                <input type="text" id="modalSearch" placeholder="Hotel name" oninput="applyHotelFilters(${routeId},'${city}')"></label>
+            <label class="tsw-f"><span>Stars</span>
+                <select id="starFilter" onchange="applyHotelFilters(${routeId},'${city}')"><option value="">All</option>${stars.map(x => `<option value="${tsEscAttr_(x)}">${tsStarsText_(x) || x}</option>`).join('')}</select></label>
+            <label class="tsw-f"><span>Category</span>
+                <select id="categoryFilter" onchange="applyHotelFilters(${routeId},'${city}')"><option value="">All</option>${categories.map(c => `<option value="${tsEscAttr_(c.key)}">${c.label}</option>`).join('')}</select></label>
+            <div class="tsw-f tsw-meals" ${_meals.length ? '' : 'hidden'}><span>Meals</span>   <!-- hidden until the meal data exists -->
+                <div class="tsw-chips"><button class="meal-chip warm-pill active" onclick="selectMealChip(this,'',${routeId},'${city}')">All</button>${_meals.map(m => `<button class="meal-chip warm-pill" onclick="selectMealChip(this,${JSON.stringify(m.key).replace(/"/g,'&quot;')},${routeId},'${city}')">${m.label}</button>`).join('')}</div>
+                <input type="hidden" id="mealFilter" value=""></div>
+            <label class="tsw-f tsw-price"><span>Price / night ₹</span>
+                <div class="tsw-mm"><input type="number" id="minPriceInput" value="${minPrice}" oninput="applyHotelFilters(${routeId},'${city}')"><i>–</i><input type="number" id="maxPriceInput" value="${maxPrice}" oninput="applyHotelFilters(${routeId},'${city}')"></div></label>
+            <div class="tsw-count"><span id="hotelCountBadge">0 Found</span></div>
         </div>
         <div id="currentHotelBar" style="background:#f3ede3;border-bottom:1px solid #e8ddd0;padding:8px 16px;display:none!important;" class="flex-shrink-0 flex justify-between items-center"></div>
         <div id="hotelListContainer" class="overflow-y-auto flex-1 p-3 space-y-2"></div>`;
@@ -10081,12 +10126,20 @@ function selectCatFilter(btn, val, routeId, city) {
     applyHotelFilters(routeId, city);
 }
 
+function selectMealChip(btn, val, routeId, city) {   // owner 16 Nov: meal chips (hidden until the meal data exists)
+    document.querySelectorAll('.meal-chip').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('mealFilter').value = val;
+    applyHotelFilters(routeId, city);
+}
+
 function applyHotelFilters(routeId, city) {
     const searchTerm     = (document.getElementById('modalSearch')?.value || '').toLowerCase();
     const minPrice       = Number(document.getElementById('minPriceInput')?.value) || 0;
     const maxPrice       = Number(document.getElementById('maxPriceInput')?.value) || 999999;
     const starFilter     = document.getElementById('starFilter')?.value || '';
     const categoryFilter = document.getElementById('categoryFilter')?.value || '';
+    const mealFilter     = TS_SWAP_MEALS_ON ? (document.getElementById('mealFilter')?.value || '') : '';
     const allCityHotels  = (masterData.hotels || []).filter(h => h.city.toLowerCase() === city.toLowerCase());
     const currentName    = window._currentHotelName || '';
     const _tsSameName    = allCityHotels.filter(o => (o.name || '').toLowerCase() === currentName).length;   // Batch 1 card 6
@@ -10097,7 +10150,8 @@ function applyHotelFilters(routeId, city) {
                hName.includes(searchTerm) &&
                cost >= minPrice && cost <= maxPrice &&
                (!starFilter     || h.starRating === starFilter) &&
-               (!categoryFilter || h.category   === categoryFilter);
+               (!categoryFilter || tsCatKey_(h.category) === categoryFilter) &&   // owner 16 Nov: merged spellings
+               (!mealFilter     || tsCatKey_(tsHotelMeal_(h)) === mealFilter);
     }).sort((a, b) => Number(a.cost) - Number(b.cost));
     document.getElementById('hotelCountBadge').innerText = `${filtered.length} Found`;
 
@@ -10105,31 +10159,23 @@ function applyHotelFilters(routeId, city) {
     const nights       = window._currentHotelNights || 1;
 
     function diffLabel(h) {
-        if (currentCost === 0) return `<div class="text-xs font-black text-slate-700">₹${Math.round(Number(h.cost)*nights*(window._currentHotelRooms || 1)).toLocaleString('en-IN')}</div><div class="text-[8px] text-slate-400">${nights}N total</div>`;
+        if (currentCost === 0) return `<b>₹${Math.round(Number(h.cost)*nights*(window._currentHotelRooms || 1)).toLocaleString('en-IN')}</b><small> · ${nights}N total</small>`;
         const diff   = Math.round((Number(h.cost) - currentCost) * nights * (window._currentHotelRooms || 1));   // Batch 1 card 6: = the change in the table's Total Stay
         const sign   = diff >= 0 ? '+' : '−';
-        const colour = diff > 0 ? '#dc2626' : diff < 0 ? '#16a34a' : '#64748b';
-        return `<div style="font-size:12px;font-weight:900;color:${colour};">${sign}₹${Math.abs(diff).toLocaleString('en-IN')}</div>
-                <div style="font-size:10px;color:#1a1a1a;">difference for ${nights} nights</div>`;
+        const colour = diff > 0 ? '#b91c1c' : diff < 0 ? '#15803d' : '#64748b';
+        return `<b style="color:${colour}">${sign}₹${Math.abs(diff).toLocaleString('en-IN')}</b><small> · ${nights}N</small>`;
     }
+    const _catLabel = {}; tsCatList_(allCityHotels).forEach(c => { _catLabel[c.key] = c.label; });
 
+    // owner 16 Nov: one hotel = 2 single lines (name + stars / category + room type + price difference); meal label hidden until the data exists
     function hotelCard(h, highlight) {
         const origIdx = allCityHotels.indexOf(h);   // Batch 1 card 6: the exact row clicked (a name can repeat with another room / meals)
-        const hlStyle = highlight ? 'border:1px solid rgba(90,122,92,.4);background:#f0f5f0;' : '';
+        const meal = TS_SWAP_MEALS_ON ? (tsHotelMeal_(h) || 'Meal plan to be confirmed') : '';   // CC ruling: TripJack's own words, blank = "to be confirmed"
         return `
         <div onclick="selectHotel(${routeId},${origIdx},${JSON.stringify(h.city || '').replace(/"/g,'&quot;')})"
-            class="hotel-swap-item flex justify-between items-center gap-2" style="${hlStyle}">
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1">
-                    <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#2c1810;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.name}</div>
-                    <div style="font-size:9px;color:#c8990a;font-weight:600;flex-shrink:0;white-space:nowrap;">${renderStars(h.starRating)}</div>
-                </div>
-                <div class="flex gap-1 mt-0.5 flex-wrap">
-                    <span class="act-cat">${h.category || ''}</span>
-                    <span style="font-size:8px;color:#7a6458;font-style:italic;">${h.roomType || h.type || ''}</span>
-                </div>
-            </div>
-            <div style="text-align:right;flex-shrink:0;">${diffLabel(h)}</div>
+            class="hotel-swap-item tsw-row${highlight ? ' tsw-near' : ''}" title="${tsEscAttr_((h.name || '') + ' · ' + (h.roomType || h.type || ''))}">
+            <div class="tsw-l1"><span class="tsw-name">${h.name}</span><span class="tsw-stars">${tsStarsText_(h.starRating)}</span></div>
+            <div class="tsw-l2"><span class="tsw-cat">${_catLabel[tsCatKey_(h.category)] || ''}</span><span class="tsw-room">${h.roomType || h.type || ''}</span>${meal ? `<span class="tsw-meal">${meal}</span>` : ''}<span class="tsw-diff">${diffLabel(h)}</span></div>
         </div>`;
     }
 
@@ -10138,7 +10184,7 @@ function applyHotelFilters(routeId, city) {
     if (curBar && window._currentHotelName) {
         const curHotel = allCityHotels.find(h => (h.name || '').toLowerCase() === window._currentHotelName);
         if (curHotel) {
-            curBar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#f3ede3;border-bottom:1px solid #e8ddd0;padding:8px 16px;flex-shrink:0;';
+            curBar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#f3ede3;border-bottom:1px solid #e8ddd0;padding:8px 16px;flex-shrink:0;'; curBar.classList.add('tsw-cur');
             curBar.innerHTML = `
                 <div>
                     <div style="font-size:8px;font-weight:700;color:#7a6458;text-transform:uppercase;margin-bottom:1px;">Currently Selected</div>
@@ -10157,9 +10203,9 @@ function applyHotelFilters(routeId, city) {
         const bestMatch = filtered.filter(h => Number(h.cost) >= low && Number(h.cost) <= high).slice(0, 3);
         const rest      = filtered.filter(h => !bestMatch.includes(h));
         if (bestMatch.length > 0) {
-            html += `<div style="font-size:9px;font-weight:700;color:#5a7a5c;text-transform:uppercase;padding:0 4px;margin-bottom:6px;">Within ±20% of current price</div>`;
+            html += `<div style="font-size:9px;font-weight:700;color:#5a7a5c;text-transform:uppercase;padding:0 4px;margin-bottom:3px;">Within ±20% of current price</div>`;
             html += bestMatch.map(h => hotelCard(h, true)).join('');
-            if (rest.length > 0) html += `<div style="font-size:9px;font-weight:700;color:#7a6458;text-transform:uppercase;padding:0 4px;margin:12px 0 6px;">All Options</div>`;
+            if (rest.length > 0) html += `<div style="font-size:9px;font-weight:700;color:#7a6458;text-transform:uppercase;padding:0 4px;margin:6px 0 3px;">All Options</div>`;
         }
         html += rest.map(h => hotelCard(h, false)).join('');
     } else {
