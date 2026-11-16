@@ -4428,7 +4428,9 @@ async function checkLogin() {
     btn.innerText = "VERIFYING...";
     err.classList.add('hidden');
     try {
-        const res    = await fetch(`${API_URL}?action=checkLogin&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`);
+        // D-16NOV-PWD-IN-URL (P0 #2): credentials go in the POST body, never in the URL (same plain POST as signup).
+        // Field names are username/password: the auth shim overwrites user/token in a JSON body when an old session is saved.
+        const res    = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "checkLogin", username: user, password: pass }) });
         const data   = await res.json();
         if (data.success) {
             const session = { username: data.username, token: data.token, role: data.role, agent_id: data.agent_id, isAdmin: data.role === "ADMIN", modeText: data.role === "ADMIN" ? "ADMIN MODE" : "USER MODE" };
