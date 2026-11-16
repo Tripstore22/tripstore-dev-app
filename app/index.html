@@ -2089,7 +2089,7 @@ input[type="date"]#quickStartDate:focus {
       <!-- 04 TRAINS -->
       <div class="ts-sec-head">
         <span class="ts-sec-num">04</span>
-        <span class="ts-sec-title" id="tsLegSecTitle">Train / Ferry / Bus / Flight</span>
+        <span class="ts-sec-title" id="tsLegSecTitle">Train / Ferry / Bus</span>
       </div>
       <table class="trip-table">
         <thead>
@@ -8024,7 +8024,6 @@ function tsFlightFieldsRead_(mode) {
 // "art", "transport" is not "sport"; culture tours are landmarks, not food. First match wins, in this order. Nothing matched = 📍.
 var TS_ACTIVITY_ICONS = [
   ['🎡', ['theme park', 'disney', 'disneyland', 'amusement park', 'amusement']],
-  ['🎫', ['skip the line', 'skip-the-line']],
   ['🚌', ['hop-on', 'hop on', 'bus tour', 'bus', 'minibus', 'open-top', 'open top']],
   ['🛴', ['segway']],
   ['🚲', ['bike', 'e-bike', 'ebike', 'fatbike', 'biking', 'cycling', 'bicycle']],
@@ -8032,6 +8031,8 @@ var TS_ACTIVITY_ICONS = [
   ['🛵', ['vespa', 'scooter', 'moped', 'tuk tuk', 'tuk-tuk']],
   ['🚗', ['tours on wheels', 'driving']],
   ['⛵', ['cruise', 'boat', 'speedboat', 'sailboat', 'riverboat', 'catamaran', 'yacht', 'ferry', 'sailing', 'gondola', 'canal']],
+  // owner 14 Nov (D-14NOV-ICON-BOAT-BEATS-TICKET): boat / gondola / canal / cruise words come before ticket words
+  ['🎫', ['skip the line', 'skip-the-line']],
   ['🏄', ['water sport', 'kayak', 'kayaking', 'swim', 'swimming', 'beach', 'coast', 'coastal', 'coastline']],
   ['🍷', ['wine', 'winery', 'wineries', 'vineyard', 'winegrowers', 'tasting', 'drink', 'beer', 'brewery', 'breweries']],
   ['🍽', ['food', 'foodie', 'dining', 'cooking', 'culinary']],
@@ -8478,7 +8479,7 @@ function renderTables() {
         </tr>`;
     }
 
-    { const _t = document.getElementById('tsLegSecTitle'); if (_t) _t.textContent = 'Train / Ferry / Bus / Flight'; }   // Batch 1 card 7 (owner 14 Nov: the screen always names Flight)
+    { const _t = document.getElementById('tsLegSecTitle'); if (_t) _t.textContent = tsLegSectionTitle_(selectedIntercity); }   // owner 14 Nov 20:1x: "/ Flight" only when a Flight row exists (= PDF / Excel)
     // Summary
     const uniqueCities = [...new Set(currentPlan.map(p => p.city.toUpperCase()))];
     const uniqueCitiesProp = [...new Set(currentPlan.map(p => p.city))];
@@ -9929,7 +9930,7 @@ function undoDelete() {
 function openIntercitySwap(legId) {
     if (!_withTransport_(() => openIntercitySwap(legId))) return;   // P0 STARTUP-PERCITY
     if (!masterData.intercity || masterData.intercity.length === 0) { showToast("No intercity data found", "error"); return; }
-    document.getElementById('modalHeading').innerText = "Select Train / Ferry / Bus / Flight";   // Batch 1 card 7 (owner 14 Nov)
+    document.getElementById('modalHeading').innerText = 'Select ' + tsLegSectionTitle_(selectedIntercity);   // owner 14 Nov 20:1x: "/ Flight" only when a Flight row exists
     const mc = document.getElementById('modalContent');
     mc.className = 'p-4 overflow-y-auto space-y-4 bg-slate-50';
     mc.style.cssText = '';
