@@ -9,6 +9,7 @@
 <meta name="robots" content="noindex,nofollow,noarchive">
 <style>#tab-signup{display:none!important}#ts-dev-ribbon{position:fixed;top:0;left:0;right:0;z-index:99999;background:#b4532a;color:#fff;font:600 12px/22px system-ui,sans-serif;text-align:center;letter-spacing:.04em}body{padding-top:22px}</style>
 
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- F06 cache-bust: app logic is INLINE in this document, so the cache-bust target
@@ -95,6 +96,11 @@ html{height:100%;overflow:hidden;}body{height:100%;font-family:var(--sans);backg
   font-size:9px;color:#b85c38;font-weight:700;
   text-transform:uppercase;letter-spacing:.5px;
 }
+/* FREE FOREVER (owner 17 Nov 02:35): header pill + calm info toast */
+#freeForeverPill{display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#fff;background:#b85c38;border-radius:999px;padding:4px 11px;box-shadow:0 1px 0 rgba(184,92,56,.35);}
+#signupFreeForever{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:#fbf3ea;border:1px solid #e7c9ae;color:#6b3a22;font-size:12px;font-weight:700;text-align:center;}
+#signupFreeForever b{color:#b85c38;font-family:'Playfair Display',Georgia,serif;font-size:14px;letter-spacing:.2px;}
+.toast.toast-info{background:#fbf3ea;color:#6b3a22;border:1px solid #e7c9ae;box-shadow:0 4px 14px rgba(107,58,34,.18);white-space:normal;line-height:1.45;max-width:min(420px,calc(100vw - 40px));margin-top:44px;}   /* wraps inside the screen; sits just below the header so Logout stays reachable */
 #walletBadge{
   cursor:pointer;background:rgba(184,92,56,0.12);
   border:1px solid rgba(184,92,56,0.2);border-radius:8px;
@@ -1722,6 +1728,7 @@ input[type="date"]#quickStartDate:focus {
 <div id="ts-dev-ribbon">DEV / TEST ENVIRONMENT - not the live product - interns only</div>
 
 
+
 <div id="toast-container"></div>
 
 <!-- LOGIN SCREEN -->
@@ -1739,6 +1746,7 @@ input[type="date"]#quickStartDate:focus {
       <input type="password" id="passInput" class="login-input" placeholder="Password" style="letter-spacing:.25em;">
     </div>
     <div id="signup-fields" class="hidden" style="text-align:left;">
+      <div id="signupFreeForever">Free forever <span style="font-weight:600;">· no charge for quotes or PDFs</span></div>
       <div style="margin-bottom:8px;"><label style="font-size:9px;font-weight:700;color:var(--ink4);text-transform:uppercase;display:block;margin-bottom:3px;">Travel Agency Name</label><input type="text" id="signupAgency" class="login-input" placeholder="e.g. Sunrise Travels Pvt Ltd"></div>
       <div style="margin-bottom:8px;"><label style="font-size:9px;font-weight:700;color:var(--ink4);text-transform:uppercase;display:block;margin-bottom:3px;">Your Full Name</label><input type="text" id="signupPerson" class="login-input" placeholder="e.g. Rahul Sharma"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
@@ -1772,6 +1780,7 @@ input[type="date"]#quickStartDate:focus {
   <button id="navBtn-agents" class="ts-nav-btn admin-only-tab" style="display:none;" onclick="switchAdminTab('agents')">🏢 Agents</button>
   <button id="navBtn-business" class="ts-nav-btn admin-only-tab" style="display:none;" onclick="switchAdminTab('business')">▦ Business</button>
   <div class="ts-nav-right">
+    <span id="freeForeverPill" title="No charge for quotes or PDFs">Free forever</span>
     <div id="walletBadge" onclick="toggleWalletDropdown()">
       <span style="color:#b85c38;font-size:10px;font-weight:700;opacity:.7;">WALLET</span>
       <span id="walletBalanceDisplay" style="color:#16a34a;font-size:13px;font-weight:800;">₹0</span>
@@ -4417,10 +4426,10 @@ function tsTableAutoGrow_(root) {
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
-    toast.className = `toast ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+    toast.className = `toast ${type === 'success' ? 'bg-green-600' : type === 'info' ? 'toast-info' : 'bg-red-600'}`;   // 'info' = calm, not an error (free-forever limit message)
     toast.innerText = msg;
     container.appendChild(toast);
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, type === 'info' ? 9000 : 3000);
 }
 
 // =============================================================
@@ -11454,6 +11463,7 @@ async function _processBillableActionInner(actionType, deliverFn) {
         let result;
         try { result = await saveRes.json(); } catch(e) { result = { success: false, message: await saveRes.text() }; }
         if (!result.success) {
+            if (tsShowLimit_(result)) return;   // FREE FOREVER: today's 15 reached -> calm message, the quote stays on screen
             console.error('[processBillableAction] ABORT: save blocked —', result.message);
             showToast('Save blocked: ' + (result.message || 'unknown'), 'error');
             return;
@@ -11521,6 +11531,7 @@ async function _deliverAuthorized(actionType, quoteId, paxName, deliverFn) {
     }
     if (typeof auth.newBalance === 'number') { walletBalance = auth.newBalance; updateWalletDisplay(); }
     if (!auth.allowed) {
+        if (tsShowLimit_(auth)) return;   // FREE FOREVER: today's 15 PDFs reached -> calm message, nothing lost
         showToast(auth.message || 'Not delivered — no charge.', 'error');
         return;
     }
@@ -11804,6 +11815,7 @@ async function sendToWhatsApp(btnEl) {
         if (typeof showToast === 'function') showToast('Queued for WhatsApp. Delivery status will show next to the WhatsApp button.', 'success');
         _waTrackDelivery(qid || '', legacyName, result.sendId || '');
       } else {
+        if (tsShowLimit_(result)) return;   // FREE FOREVER: today's limit reached -> calm message
         if (typeof showToast === 'function') showToast((result && result.error) || 'WhatsApp send failed', 'error');
       }
     });
@@ -11988,8 +12000,18 @@ window._lastQuoteId = null;
 // v19 (2026-05-27) — shared capture used by BOTH save sites (_autoSaveTick
 // and processBillableAction). Single source of truth so neither relies on
 // the other as a safety net. Returns the captured quoteId for caller use.
+// L8 round 2 (packet P3 2b): the server refuses the 16th row CREATION of the IST day, silent autosave included (limit:true, silent:true). The page then shows the
+// polite message ONCE, stops the periodic autosave for THAT name (flag in memory only: a reload starts clean), keeps the quote on screen and editable, and resumes
+// after any successful save of it or when the IST day changes. A forced / manual save always still tries.
+function tsIstDayKey_() { return new Date(Date.now() + 19800000).toISOString().slice(0, 10); }   // IST = UTC+5:30, no locale dependence
+function tsAutoLimitStopped_(name) {
+  const f = window._tsAutoLimit; if (!f) return false;
+  if (f.day !== tsIstDayKey_()) { window._tsAutoLimit = null; return false; }   // a new IST day: the limit has reset
+  return !!(f.names && f.names[name]);   // per name: switching between quotes does not forget a stop
+}
 function _captureSavedQuoteId(result) {
   if (result && result.quoteId) {
+    window._tsAutoLimit = null;   // any successful save (manual, forced or auto) lifts the autosave stop
     window._lastQuoteId = result.quoteId;
     return result.quoteId;
   }
@@ -12053,6 +12075,7 @@ async function _autoSaveTick(force) {
     var agent = window.currentUsername || (typeof _resolveAgentName === 'function' ? _resolveAgentName() : '') || 'admin';
     if (!payload) { _autoSaveInFlight = false; console.warn('[autoSaveTick] no payload — _buildCurrentPayload returned null'); return; }
     console.log('[autoSaveTick] resolved agent=', JSON.stringify(agent));
+    if (!force && tsAutoLimitStopped_(saveName)) { console.log('[autoSaveTick] stopped: the daily limit was reached for this quote name'); return; }   // L8: no request per tick
     console.log('[autoSaveTick] POSTing saveItinerary as', JSON.stringify({paxName: saveName, savedBy: agent, payload_keys: Object.keys(payload||{})}));
     var res = await fetch(API_URL, {
       method: 'POST',
@@ -12063,6 +12086,12 @@ async function _autoSaveTick(force) {
     var result;
     try { result = JSON.parse(rawText); }
     catch (parseErr) { result = { success: false, message: 'Non-JSON response: ' + rawText.slice(0, 200) }; }
+    if (result && result.limit === true) {   // FREE FOREVER (P3 2b): the 16th creation of the IST day: NOT a failure
+      const _day = tsIstDayKey_(), _f = (window._tsAutoLimit && window._tsAutoLimit.day === _day) ? window._tsAutoLimit : { day: _day, names: {} };
+      _f.names[saveName] = true; window._tsAutoLimit = _f;
+      tsShowLimit_(result);   // calm toast; later periodic ticks send nothing, so it shows once. Dirty stays true; the quote on screen is never touched
+      return;
+    }
     if (result && result.success) {
       _autoSaveDirty = false;
       _autoSaveFailCount = 0;
@@ -12591,12 +12620,12 @@ const a11y = (key, label) => `data-c6="${key}" data-title="${esc(label)}"`;
 // a row with a number; the explanation lives in the click panel, not on the card
 function row(key, label, good) {
   const m = M[key]; if (!m) throw new Error('no metric ' + key); used.add(key);
-  if (m.missing) return `<div class="mrow wait" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="pend ${m.state}">${m.state === 'down' ? 'not available' : 'needs CC'}</span></div>`;
+  if (m.missing) return `<div class="mrow wait" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="pend ${m.state}">${m.state === 'down' ? 'couldn’t load' : 'data coming'}</span></div>`;
   return `<div class="mrow" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="mv">${m.w}</span>${chg(m.w, m.p, good)}</div>`;
 }
 // numbers that come after Diwali: one quiet line per card, each still clickable
 function later(items) {
-  return `<div class="later"><span>Needs CC:</span>${items.map(([k, l]) => { used.add(k); return `<span class="lt" ${a11y(k, l)}>${esc(l)}</span>`; }).join('<i>·</i>')}</div>`;
+  return `<div class="later"><span>Data coming:</span>${items.map(([k, l]) => { used.add(k); return `<span class="lt" ${a11y(k, l)}>${esc(l)}</span>`; }).join('<i>·</i>')}</div>`;
 }
 const zeroBoth = [];
 function drow(key, label) {
@@ -12610,7 +12639,7 @@ const group = (title, items0, cls) => { const items = items0.map(([k, l]) => [k,
 // ---- KPI cards: the old page's six, now this week vs last week
 const KPI = [
   ['app_quotes', 'App quotes', '', '↗', 'up', v => v, m => `${m.trips[0]} different trips`],
-  ['wa_quotes', 'WhatsApp bot quotes', 'blue', '◌', 'up', v => v, () => 'bot log: needs CC'],
+  ['wa_quotes', 'WhatsApp bot quotes', 'blue', '◌', 'up', v => v, () => 'bot log: data coming'],
   ['won', 'Won quotes', 'green', '✓', 'up', v => v, () => 'marked Won in Quote_Log'],
   ['open_value', 'Open quote value', 'amber', '₹', null, inr, m => 'still Pending'],
   ['active_7d', 'Active agencies', 'teal', '◎', 'up', v => v, () => 'agents, staff left out'],
@@ -12619,7 +12648,7 @@ const KPI = [
 const kpis = KPI.map(([k, label, cls, icon, good, fmt, foot]) => {
   const m = M[k]; used.add(k);
   return `<article class="kpi ${cls}" ${a11y(k, label)}><div class="kpi-top"><span class="kpi-label">${esc(label)}</span><span class="kpi-icon" aria-hidden="true">${icon}</span></div>
-    <div class="kpi-value">${m.missing ? '<span class="kpi-na">' + (m.state === 'down' ? 'not available' : 'needs CC') + '</span>' : fmt(m.w)}</div><div class="kpi-foot">${m.missing ? '' : chg(m.w, m.p, good, k === 'open_value' ? short : fmt)}<span>${esc(m.missing ? 'click for what it needs' : foot(m))}</span></div></article>`;
+    <div class="kpi-value">${m.missing ? '<span class="kpi-na">' + (m.state === 'down' ? 'couldn’t load' : 'data coming') + '</span>' : fmt(m.w)}</div><div class="kpi-foot">${m.missing ? '' : chg(m.w, m.p, good, k === 'open_value' ? short : fmt)}<span>${esc(m.missing ? 'click for what it needs' : foot(m))}</span></div></article>`;
 }).join('\n');
 
 // ---- the one chart: where this week's quotes landed against the client's budget
@@ -12631,10 +12660,10 @@ const bands = O.bands.map(([k, lab, rule]) => { used.add(k); const m = M[k];
   return `<div class="mrow brow" ${a11y(k, 'Budget fit: ' + lab + ' (' + rule + ')')}><span class="ml"><i class="dot" style="background:${BC[k]}"></i>${esc(lab)}</span><span class="mv">${m.w}</span>${chg(m.w, m.p, BG[k])}</div>`; }).join('');
 const funnel = [['wa_chats', 'Chats'], ['wa_quotes', 'Quotes'], ['handoff_reasons', 'Handoffs'], ['wa_unanswered', 'Unanswered']].map(([k, l], i) => {
   used.add(k); const m = M[k], good = { wa_chats: 'up', wa_quotes: 'up', wa_unanswered: 'down' }[k] || null;
-  return (i ? '<span class="arr" aria-hidden="true">→</span>' : '') + `<div class="fstep" ${a11y(k, 'WhatsApp ' + l.toLowerCase())}><span>${l}</span>${m.missing ? '<em class="na">needs CC</em>' : '<b>' + m.w + '</b>' + chg(m.w, m.p, good).replace('class="chg', 'class="chg mini')}</div>`;
+  return (i ? '<span class="arr" aria-hidden="true">→</span>' : '') + `<div class="fstep" ${a11y(k, 'WhatsApp ' + l.toLowerCase())}><span>${l}</span>${m.missing ? '<em class="na">data coming</em>' : '<b>' + m.w + '</b>' + chg(m.w, m.p, good).replace('class="chg', 'class="chg mini')}</div>`;
 }).join('');
 const health = [['bot_up', 'Bot up'], ['last_backup', 'Last backup'], ['api_spend', 'API spend vs cap'], ['last_nightly', 'Last nightly']].map(([k, l]) => {
-  used.add(k); const m = M[k], v = m.missing ? 'needs CC' : (m.short || '');
+  used.add(k); const m = M[k], v = m.missing ? 'data coming' : (m.short || '');
   return `<span class="hp ${m.missing ? 'diwali' : (m.state || 'ok')}" ${a11y(k, l)}><i></i>${esc(l)}: <b>${v}</b></span>`;
 }).join('');
 const waiting = Object.keys(M).filter(k => M[k].missing || M[k].missing_part);
@@ -12659,11 +12688,11 @@ const body = `
       <div class="sec s-terra"><div class="sub">PDFs and revenue</div>
       ${row('bot_pdfs', 'PDFs made by the bot', 'up')}
       ${row('app_pdfs', 'PDFs made in the app', 'up')}
-      ${row('pdf_refused', 'PDFs refused by billing', 'down')}
+      ${row('pdf_refused', 'PDFs refused by billing · history only', 'down')}
       ${row('revenue', 'Revenue', 'up')}</div>
       <div class="sec s-sky"><div class="sub">Agents</div>
       ${row('agents_signed', 'Signed up', 'up')}
-      ${row('paying', 'Paying', 'up')}
+      ${row('paying', 'Paying · history only', 'up')}
       ${row('quiet_14d', 'Quiet for 14 days · call list', 'down')}</div>
       <div class="sec s-sage"><div class="sub">WhatsApp</div>
       <div class="funnel">${funnel}</div></div>
@@ -12679,7 +12708,7 @@ const body = `
       ${row('light_days', 'Empty or light days', 'down')}</div>
       <div class="sec s-rose"><div class="sub">Rework first · furthest over budget</div>
       <div class="rework">${(O.top_over || []).map(([c, u, id]) => `<div class="rw" data-c6="band_over" data-title="Over budget this week" title="${esc(id)}"><span class="rwc">${esc(c)}</span><b>${esc(u)}</b></div>`).join('')}</div></div>
-      <div class="later"><span>Hand-offs:</span><span class="lt" ${a11y('handoff_reasons', 'Bot hand-offs by reason')}>${esc((O.handoff_top || []).map(([r, n]) => r.replace(/_/g, ' ') + ' ' + n).join(' · ') || (M.handoff_reasons.missing ? 'needs CC' : 'none this week'))}</span><i>·</i><span>Needs CC:</span>${used.add('underpriced_tours') && ''}<span class="lt" ${a11y('underpriced_tours', 'underpriced tours')}>underpriced tours</span></div>
+      <div class="later"><span>Hand-offs:</span><span class="lt" ${a11y('handoff_reasons', 'Bot hand-offs by reason')}>${esc((O.handoff_top || []).map(([r, n]) => r.replace(/_/g, ' ') + ' ' + n).join(' · ') || (M.handoff_reasons.missing ? 'data coming' : 'none this week'))}</span><i>·</i><span>Data coming:</span>${used.add('underpriced_tours') && ''}<span class="lt" ${a11y('underpriced_tours', 'underpriced tours')}>underpriced tours</span></div>
     </section>
     <section class="col c-demand" aria-labelledby="h-demand">
       <h2 id="h-demand"><span class="tag" aria-hidden="true">↗</span><span class="ht">Demand<small>what clients ask for, this week vs last</small></span></h2>
@@ -12688,7 +12717,7 @@ const body = `
       ${later([['cities_not_live', 'cities asked but not live']])}
     </section>
   </div>
-  <div class="foot"><span class="link" ${a11y('missing_all', 'Numbers the app cannot read yet')}>${nLater} numbers need CC · see which</span><span class="sep">·</span>Live from the DEV backend (Quote_Log, Users, Agent_Wallet, PDF_DELIVERY_LOG, Saved_Itineraries), read-only${O.as_of.read ? ' · read at ' + esc(O.as_of.read) + ' IST' : ''}</div>
+  <div class="foot"><span class="link" ${a11y('missing_all', 'Numbers the app cannot read yet')}>${nLater} numbers with data coming · see which</span><span class="sep">·</span>Live from the DEV backend (Quote_Log, Users, Agent_Wallet, PDF_DELIVERY_LOG, Saved_Itineraries), read-only${O.as_of.read ? ' · read at ' + esc(O.as_of.read) + ' IST' : ''}</div>
 </main>`;
 const css = `
 :root{--cream:#faf7f2;--cream2:#f3ede3;--cream3:#ede4d6;--sand:#d9cfc0;--ink:#1c1812;--ink2:#3d3629;--ink3:#6b5f4f;--ink4:#9e9080;--terra:#b85c38;--terra-bg:#fdf0ea;--terra-mid:#e07a50;--sage:#5a7a5c;--sage-bg:#eef4ee;--sky:#3b6ea5;--sky-bg:#edf3fb;--red:#c0392b;--red-bg:#fdecea;--serif:'Playfair Display',Georgia,serif;--sans:'Nunito Sans',system-ui,sans-serif;--shadow:0 3px 14px rgba(28,24,18,.05)}
@@ -12874,7 +12903,7 @@ data.m.missing_all = M.missing_all; data.lists.missing_all = O.lists.missing_all
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -12989,7 +13018,7 @@ function todo(pages, all) {
     
     // ---------- the two windows (= add_v2.js business(), live sources; bot numbers say "needs CC") ----------
     PG = 'b';
-    const ccTile = (key, label) => tile(key, M[key] && M[key].state === 'down' ? 'not available' : 'needs CC', label, '', 'need');
+    const ccTile = (key, label) => tile(key, M[key] && M[key].state === 'down' ? 'couldn’t load' : 'data coming', label, '', 'need');
     const has = (k) => M[k] && !M[k].missing;
     const o = M.v2_outcome.v || {}, br = M.v2_book_rate.v || {};
     const ageMax = Math.max.apply(null, ages.map((r) => r[2]).concat([1]));
@@ -12997,15 +13026,15 @@ function todo(pages, all) {
     const srcs = [['v2_src_app_staff', 'App · staff'], ['v2_src_app_agent', 'App · agent']];
     const sMax = Math.max.apply(null, srcs.map(([k]) => (has(k) ? M[k].v : 0)).concat([1]));
     const srcBars = srcs.map(([k, lab]) => has(k) ? `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"><span class="v2-bf v2-fill" style="width:${Math.round(M[k].v / sMax * 100)}%"></span></span><b>${inr(M[k].v)}</b></div>` : '').join('')
-      + [['v2_src_wa_agent', 'WhatsApp · agent'], ['v2_src_wa_b2c', 'WhatsApp · B2C']].map(([k, lab]) => `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"></span><b class="v2-na">needs CC</b></div>`).join('');
+      + [['v2_src_wa_agent', 'WhatsApp · agent'], ['v2_src_wa_b2c', 'WhatsApp · B2C']].map(([k, lab]) => `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"></span><b class="v2-na">data coming</b></div>`).join('');
     const outcomeTiles = has('v2_outcome')
       ? tile('v2_outcome', `${inr(o.won + o.lost)} <small>of ${inr(o.all)}</small>`, 'quotes marked Won or Lost', `Won ${inr(o.won)} · Lost ${inr(o.lost)} · Pending ${inr(o.pending)}`, o.won + o.lost ? 'ok' : 'bad', 'Quotes by outcome')
         + tile('v2_book_rate', pct(br.won, br.of), 'quote → booking', `${inr(br.won)} won of ${inr(br.of)} quotes in 90 days`, br.won ? 'ok' : 'bad')
         + tile('v2_booked_value', '₹' + inr(M.v2_booked_value.v), 'booked value', 'Grand total of Won quotes', M.v2_booked_value.v ? 'ok' : 'bad')
       : ccTile('v2_outcome', 'quotes marked Won or Lost') + ccTile('v2_book_rate', 'quote → booking') + ccTile('v2_booked_value', 'booked value');
     const moneyTiles = (has('v2_margin') ? tile('v2_margin', '₹' + inr(M.v2_margin.v), 'booked margin', 'markup on Won quotes = money earned', M.v2_margin.v ? 'ok' : 'bad') : ccTile('v2_margin', 'booked margin'))
-      + (has('v2_fees') ? tile('v2_fees', wk(M.v2_fees.v, 1), 'quote fees charged', 'wallet DEBIT rows (per-quote charges)', 'plain') + tile('v2_topups', wk(M.v2_topups.v, 1), 'wallet top-ups', 'wallet CREDIT rows: prepaid, not earned', 'plain')
-        : ccTile('v2_fees', 'quote fees charged') + ccTile('v2_topups', 'wallet top-ups'));
+      + (has('v2_fees') ? tile('v2_fees', wk(M.v2_fees.v, 1), 'quote fees charged · history only', 'wallet DEBIT rows (per-quote charges); free forever since 16 Nov', 'plain') + tile('v2_topups', wk(M.v2_topups.v, 1), 'wallet top-ups · history only', 'wallet CREDIT rows; free forever since 16 Nov', 'plain')
+        : ccTile('v2_fees', 'quote fees charged · history only') + ccTile('v2_topups', 'wallet top-ups · history only'));
     const la = M.v2_src_last_agent.v || {}, ae = M.v2_src_agents_ever.v || {};
     const agentTiles = (has('v2_src_last_agent') ? tile('v2_src_last_agent', esc(la.date || '—'), 'last app quote by an agent', la.days == null ? 'no agent quote yet' : `${inr(la.days)} days ago`, la.days != null && la.days <= 14 ? 'ok' : 'bad') : ccTile('v2_src_last_agent', 'last app quote by an agent'))
       + (has('v2_src_agents_ever') ? tile('v2_src_agents_ever', `${inr(ae.n)} <small>of ${inr(ae.of)}</small>`, 'agent accounts that ever quoted', 'role AGENT / USER in Users', 'warn') : ccTile('v2_src_agents_ever', 'agent accounts that ever quoted'))
@@ -13020,10 +13049,10 @@ function todo(pages, all) {
       card('v2-c-sky', '⏱', 'Speed', 'How fast a client gets a quote, and how long the quotes still waiting have been open.',
         `<div class="v2-tiles v2-t2">${ccTile('v2_wa_speed', 'WhatsApp: request → PDF')}${needTile('v2_app_speed', 'App: request → first quote')}</div>` +
         `<div class="v2-sub">Pending quotes by age <small>(saved date; no last-contact date yet)</small></div><div class="v2-bars v2-spread">${ageBars || '<p class="v2-how">' + esc((M.v2_outcome.missing) || '') + '</p>'}</div>`,
-        'Source: Quote_Log · Logged At, Outcome · WhatsApp speed: bot log, needs CC') +
+        'Source: Quote_Log · Logged At, Outcome · WhatsApp speed: bot log, data coming') +
       card('v2-c-violet', '↗', 'Where each quote came from', 'Who saved each quote: staff or agents in the app, agents or clients (B2C) on WhatsApp.',
         `<div class="v2-bars v2-bars-l v2-spread">${srcBars}</div><div class="v2-tiles v2-t3">${agentTiles}</div>`,
-        'Source: Quote_Log + Users (all dates) · WhatsApp: bot log, needs CC') + `</div>`;
+        'Source: Quote_Log + Users (all dates) · WhatsApp: bot log, data coming') + `</div>`;
     const rw = M.v2_rework.v || {}, ls = M.v2_link_saved && M.v2_link_saved.v, lb = M.v2_link_blank && M.v2_link_blank.v, ld = M.light_days;
     const TODO = [
       ['b', 'v2_outcome', has('v2_outcome') ? `${inr(o.won + o.lost)} of ${inr(o.all)} quotes marked Won or Lost` : 'Won / Lost not readable', 'Sumit: who marks, from when', L.wl],
@@ -13044,7 +13073,7 @@ function todo(pages, all) {
     const w3 = head('v2-h-work', '!', 'What we need to work on', 'system health · every red number with its owner') + `<div class="v2-grid v2-g13">` +
       card('v2-c-slate v2-hcol', '⚙', 'System health', 'Is everything running: backups, the nightly checks, the WhatsApp bot and its spend.',
         `<div class="v2-tiles v2-grow">` + hs.map(([k, lab]) => ccTile(k, lab)).join('') + needTile('v2_alarms', 'Watcher alarms') + needTile('v2_live_code', 'LIVE on latest approved code') + `</div>`,
-        'Source: outside the app (backup job, nightly report, bot health): needs CC') +
+        'Source: outside the app (backup job, nightly report, bot health): data coming') +
       card('v2-c-red', '!', 'To-do: red numbers', 'Every red number the app can see, who should fix it, and the card item or issue that fixes it. The Data page rows come with the Data page.', todo(['b', 'q', 'd'], true), 'Owners are proposed from the open card items and issues; CC confirms or changes them. Click a red number for the list behind it.') + `</div>`;
     const section = screen('v2b2', 'v2-h-now', 'Current reality', w2) + screen('v2b3', 'v2-h-work', 'What we need to work on', w3);
     
@@ -13057,7 +13086,7 @@ function todo(pages, all) {
     let h = html.replace(re, (x, a, j, b) => a + JSON.stringify(D).replace(/</g, '\\u003c') + b);
     h = one(h, '</head>', `<style id="c6v2-css">${CSS}</style>\n<style id="c6v2-nums">main .mv,main .cols b,main .v2-tile b{font-family:'Nunito Sans',system-ui,sans-serif!important;font-weight:800!important;letter-spacing:-.01em;font-variant-numeric:lining-nums tabular-nums}.v2-na{font-size:11px;color:#9e9080}</style>\n</head>`);
     h = one(h, '</main>', section + '\n</main>');
-    h = one(h, '>Revenue<', '>Quote fees<'); h = one(h, 'PDFs and revenue', 'PDFs and quote fees'); h = one(h, 'PDFs · revenue · agents', 'PDFs · quote fees · agents');
+    h = one(h, '>Revenue<', '>Quote fees · history only<'); h = one(h, 'PDFs and revenue', 'PDFs and quote fees'); h = one(h, 'PDFs · revenue · agents', 'PDFs · quote fees · agents');
     return h;
     
   }
@@ -13528,7 +13557,7 @@ function todo(pages, all) {
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -13619,7 +13648,7 @@ function todo(pages, all) {
     const page = (main) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank"><title>TripStore · Quote</title>${FONTS}<style>${mods.CSS}</style></head><body class="min-h-screen antialiased pb-16 selection:bg-terracotta selection:text-white">${main}</body></html>`;
     if (!X.Q || X.Q.missing || !X.W || !X.E) {
       const why = (X.Q && X.Q.missing) || 'the quote list did not answer';
-      return mods.inject(page(`<main class="max-w-[1680px] mx-auto px-3 sm:px-5 py-4"><div class="qq-card-crisp p-4"><h3 class="font-serif font-bold text-sm text-[#1F1C19]">Quote dashboard: not available</h3><p class="text-[11px] text-[#786F66]">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
+      return mods.inject(page(`<main class="max-w-[1680px] mx-auto px-3 sm:px-5 py-4"><div class="qq-card-crisp p-4"><h3 class="font-serif font-bold text-sm text-[#1F1C19]">Quote dashboard: couldn’t load</h3><p class="text-[11px] text-[#786F66]">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
     }
     const a = X.asOf || {}, Q = X.Q;
     const NOTE = 'Live from the DEV backend: all ' + mods.F.n(Q.quotes) + ' quotes' + (Q.quote_span ? ', ' + Q.quote_span[0] + ' – ' + Q.quote_span[1] : '') + (a.read ? ', read at ' + a.read + ' IST' : '') +
@@ -14044,7 +14073,7 @@ function todo(pages, all) {
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -14149,7 +14178,7 @@ function todo(pages, all) {
     const page = (main) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank"><title>TripStore · Data</title>${FONTS}<style>${mods.CSS}</style></head><body>${main}</body></html>`;
     if (!X.C || X.C.missing || !X.DD) {
       const why = (X.C && X.C.missing) || 'the catalogue did not answer';
-      return mods.inject(page(`<main><div class="business-panel"><h3>Data dashboard: not available</h3><p class="business-panel-intro">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
+      return mods.inject(page(`<main><div class="business-panel"><h3>Data dashboard: couldn’t load</h3><p class="business-panel-intro">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
     }
     const C = X.C, DD = X.DD, rd = DD.rate_dates || {}, a = X.asOf || {};
     const TAG = 'Live from the DEV backend' + (a.read ? ' · read at ' + a.read + ' IST' : '') + ' · rates refreshed this week: ' + mods.F.n(rd.in_week) + ' (last week ' + mods.F.n(rd.in_prev) +
@@ -14174,7 +14203,8 @@ const TS_BIZ_FONTS = "<link href=\"https://fonts.googleapis.com/css2?family=Play
 const TS_BIZ_CALLS = ['getDashboardQuotes', 'getAllAgents', 'getWalletSummary', 'getPdfLogSummary', 'getSavedQuoteStats'];
 let _tsBizAt = 0, _tsBizBusy = null, _tsBizSized = false;
 // phones: the frame tells its height (one number, postMessage); the tab then shows the whole page (desktop keeps the one-screen frame)
-const TS_BIZ_SIZE = '<script>(function(){function s(){parent.postMessage({c6h:document.documentElement.scrollHeight},"*")}addEventListener("load",s);addEventListener("resize",s);setTimeout(s,400)})()</scr' + 'ipt>';
+const TS_BIZ_HIDE_WALLET = '<style>/* owner 18 Nov: wallet cards hidden (free forever); data kept, only the display is hidden */[data-c6="revenue"],[data-c6="paying"],[data-c6="v2_fees"],[data-c6="v2_topups"]{display:none!important}</style>';
+const TS_BIZ_SIZE = TS_BIZ_HIDE_WALLET + '<script>(function(){function s(){parent.postMessage({c6h:document.documentElement.scrollHeight},"*")}addEventListener("load",s);addEventListener("resize",s);setTimeout(s,400)})()</scr' + 'ipt>';
 function _tsBizSize_(e) {
     const fr = document.getElementById('businessFrame');
     if (!fr || e.source !== fr.contentWindow || !e.data || typeof e.data.c6h !== 'number' || !(e.data.c6h > 0)) return;
@@ -14286,7 +14316,7 @@ function switchAdminTab(tab) {
 function applyRoleVisibility(role) {
     const r = String(role || '').trim().toUpperCase();
     const VIS = {
-        ADMIN:        ['quickquote','itinerary','saved','quote','data','coverage','manager','wallet','agents','business'],
+        ADMIN:        ['quickquote','itinerary','saved','quote','data','coverage','manager','agents','business'],   // owner 18 Nov: Wallet Admin tab hidden (free forever)
         INTERNAL:     ['quickquote','itinerary','saved'],
         AGENT:        ['quickquote','itinerary','saved','profile'],
         MANAGER:      ['quickquote','itinerary','saved','quote','coverage','manager'],
@@ -14933,9 +14963,33 @@ function timeAgoD(isoStr) {
 // WALLET SYSTEM
 // ══════════════════════════════════════════════════════════════
 
+// ── FREE FOREVER (owner 17 Nov 02:35) ── no charge for agents; the cap (15 quotes + 15 PDFs per IST day) is enforced on the SERVER.
+// Wallet badge + top-up are hidden for AGENT / USER only (ADMIN and staff keep them; the wallet DATA is kept, nothing is deleted).
+var TS_FREE_FOREVER_HIDE_ROLES_ = { AGENT: 1, USER: 1 };
+var TS_LIMIT_FALLBACK_MSG_ = "You've reached today's fair-usage limit of 15 quotes. It resets at midnight \u2014 need more? WhatsApp us.";
+function tsWalletHiddenFor_(role) { return !!TS_FREE_FOREVER_HIDE_ROLES_[String(role || '').trim().toUpperCase()]; }
+// A polite limit refusal from the server: save = { success:false, limit:true, message }; delivery = { allowed:false, charge:0, message }. Returns the text to show, or '' when the reply is not a limit refusal.
+function tsLimitMessage_(res) {
+    if (!res) return '';
+    var m = String(res.message == null ? '' : res.message).trim();
+    // the save route says limit:true. The PDF / WhatsApp delivery route (authorizeDelivery) returns { allowed:false, charge:0, message } with no
+    // flag: recognise it by the backend's fixed wording (Billing.gs FF_MSG_PDF: "You've reached today's limit of ..."), and never when a charge happened.
+    var deliveryLimit = res.allowed === false && res.charged !== true && /^You've reached today's (?:fair-usage )?limit of /i.test(m);
+    if (res.limit !== true && !deliveryLimit) return '';
+    return m || TS_LIMIT_FALLBACK_MSG_;
+}
+// Shows the calm toast and returns true; the caller just returns: the quote stays on screen, no state is touched.
+function tsShowLimit_(res) {
+    var msg = tsLimitMessage_(res);
+    if (!msg) return false;
+    try { showToast(msg, 'info'); } catch (e) {}
+    return true;
+}
+
 async function loadWalletBalance() {
     const session = JSON.parse(localStorage.getItem('tripstore_session') || '{}');
     if (!session.username) return;
+    if (tsWalletHiddenFor_(session.role || window.currentRole)) return;   // FREE FOREVER: agents have no wallet to show
     try {
         const res = await fetch(`${API_URL}?action=getWalletBalance&agentId=${encodeURIComponent(session.username)}`);
         const data = await res.json();
@@ -14948,6 +15002,8 @@ function updateWalletDisplay() {
     const badge = document.getElementById('walletBadge');
     const display = document.getElementById('walletBalanceDisplay');
     if (!badge || !display) return;
+    var _role = window.currentRole; if (!_role) { try { _role = JSON.parse(localStorage.getItem('tripstore_session') || '{}').role; } catch (e) {} }
+    if (tsWalletHiddenFor_(_role)) { badge.style.display = 'none'; var _dd = document.getElementById('walletDropdown'); if (_dd) _dd.style.display = 'none'; return; }   // FREE FOREVER
     badge.style.display = 'flex';
     display.textContent = '₹' + walletBalance.toLocaleString('en-IN');
     display.style.color = walletBalance < 200 ? '#ef4444' : '#4ade80';
