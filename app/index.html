@@ -4764,6 +4764,68 @@ function syncColorFromHex() {
     if (/^#[0-9a-fA-F]{6}$/.test(hex)) document.getElementById('profileBrandColor').value = hex;
 }
 
+// ADMIN-PROFILE-01 (owner overnight brief P1-8): an ADMIN opens any agent's profile from the Agents tab, views and edits it.
+// Backend: getAgentProfile / saveAgentProfile take the named username ONLY when the session role is ADMIN (P1 option_BC; same in fit-dev), anyone
+// else is forced to their own row, so this window cannot be used to edit another agent by a non-admin. Agency name stays read-only (it is
+// the sign-up name, not a profile field). Pure builder first (node-testable), then the DOM.
+function tsAdminProfilePayload_(username, v) {
+  v = v || {};
+  var colour = (typeof HEADER_COLOURS !== 'undefined' && HEADER_COLOURS[v.brandColor]) ? v.brandColor : 'terracotta';
+  return { action: 'saveAgentProfile', username: String(username || ''), profile: {
+    logoUrl: String(v.logoUrl || '').trim(), brandColor: colour, contactPhone: String(v.contactPhone || '').trim(),
+    contactEmail: String(v.contactEmail || '').trim(), website: String(v.website || '').trim() } };
+}
+function tsAdminProfileClose_() { var o = document.getElementById('tsAdminProfileOverlay'); if (o) o.remove(); }
+async function tsAdminProfileOpen_(username) {
+  if (typeof isAdmin !== 'undefined' && !isAdmin) return;
+  tsAdminProfileClose_();
+  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); };
+  var o = document.createElement('div'); o.id = 'tsAdminProfileOverlay';
+  o.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  o.innerHTML = '<div style="background:#fff;border-radius:14px;padding:22px 26px;width:min(520px,94vw);max-height:90vh;overflow:auto;">'
+    + '<div style="font-family:var(--serif);font-size:20px;font-style:italic;margin-bottom:4px;">Agent profile</div>'
+    + '<div style="font-size:12px;color:#64748b;margin-bottom:14px;">' + esc(username) + '</div>'
+    + '<div id="tsApBody" style="font-size:12px;color:#64748b;">Loading...</div></div>';
+  o.addEventListener('click', function (e) { if (e.target === o) tsAdminProfileClose_(); });
+  document.body.appendChild(o);
+  var data;
+  try {
+    var res = await fetch(API_URL + '?action=getAgentProfile&username=' + encodeURIComponent(username));
+    data = await res.json();
+  } catch (e) { document.getElementById('tsApBody').textContent = 'Could not load this profile.'; return; }
+  var cols = Object.keys(HEADER_COLOURS).map(function (k) { return '<option value="' + k + '"' + (k === (data.brandColor || 'terracotta') ? ' selected' : '') + '>' + HEADER_COLOURS[k].label + '</option>'; }).join('');
+  var inp = 'width:100%;margin-top:3px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;';
+  document.getElementById('tsApBody').innerHTML =
+      '<label style="font-size:11px;font-weight:700;color:#334155;">Agency name (read-only)</label><input readonly value="' + esc(data.agencyName) + '" style="' + inp + 'background:#f8fafc;">'
+    + '<div style="margin-top:10px;display:flex;gap:12px;align-items:center;"><img id="tsApLogoPrev" src="' + esc(data.logoUrl) + '" alt="" style="max-height:60px;max-width:120px;object-fit:contain;' + (data.logoUrl ? '' : 'display:none;') + '"><div><label style="font-size:11px;font-weight:700;color:#334155;">Logo</label><br><input id="tsApLogoFile" type="file" accept="image/png,image/jpeg" style="font-size:11px;"></div></div>'
+    + '<input id="tsApLogoUrl" type="hidden" value="' + esc(data.logoUrl) + '">'
+    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Header colour</label><select id="tsApColour" style="' + inp + '">' + cols + '</select>'
+    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Contact phone</label><input id="tsApPhone" value="' + esc(data.contactPhone) + '" style="' + inp + '">'
+    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Contact email</label><input id="tsApEmail" value="' + esc(data.contactEmail) + '" style="' + inp + '">'
+    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Website</label><input id="tsApWeb" value="' + esc(data.website) + '" style="' + inp + '">'
+    + '<div id="tsApMsg" style="min-height:18px;margin-top:10px;font-size:12px;"></div>'
+    + '<div style="display:flex;gap:10px;margin-top:6px;"><button id="tsApSave" class="btn-terra" style="padding:9px 24px;">Save profile</button><button onclick="tsAdminProfileClose_()" style="padding:9px 18px;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;">Close</button></div>';
+  document.getElementById('tsApLogoFile').onchange = function () {
+    var f = this.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function (ev) { var im = new Image(); im.onload = function () {
+      var r = Math.min(200 / im.width, 200 / im.height, 1), c = document.createElement('canvas'); c.width = Math.round(im.width * r); c.height = Math.round(im.height * r);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); var u = c.toDataURL('image/jpeg', 0.75);
+      document.getElementById('tsApLogoUrl').value = u; var pv = document.getElementById('tsApLogoPrev'); pv.src = u; pv.style.display = ''; document.getElementById('tsApMsg').textContent = 'Logo ready: click Save profile'; };
+      im.src = ev.target.result; };
+    rd.readAsDataURL(f);
+  };
+  document.getElementById('tsApSave').onclick = async function () {
+    var msg = document.getElementById('tsApMsg');
+    var body = tsAdminProfilePayload_(username, { logoUrl: document.getElementById('tsApLogoUrl').value, brandColor: document.getElementById('tsApColour').value,
+      contactPhone: document.getElementById('tsApPhone').value, contactEmail: document.getElementById('tsApEmail').value, website: document.getElementById('tsApWeb').value });
+    try {
+      var r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) }); var d = await r.json();
+      if (d.success) { msg.style.color = '#16a34a'; msg.textContent = 'Saved'; } else { msg.style.color = '#dc2626'; msg.textContent = 'Save failed' + (d.error ? ': ' + d.error : ''); }
+    } catch (e) { msg.style.color = '#dc2626'; msg.textContent = 'Connection error'; }
+  };
+}
+
 async function saveAgentProfileData() {
     const msg = document.getElementById('profileSaveMsg');
     const hex = document.getElementById('profileBrandColorHex').value.trim() || document.getElementById('profileBrandColor').value;
@@ -4976,6 +5038,7 @@ async function loadAgentManagement(opts) {
             <td style="padding:10px 12px;font-size:11px;color:#94a3b8;">${a.lastLogin || '—'}</td>
             <td style="padding:10px 12px;text-align:center;">
               <button onclick="openPasswordResetModal('${esc(a.username)}')" style="background:#fff;color:#a55b3a;border:1px solid #a55b3a;border-radius:14px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔑 Reset</button>
+              <button onclick="tsAdminProfileOpen_('${esc(a.username)}')" title="View / edit this agent's profile" style="background:#fff;color:#334155;border:1px solid #94a3b8;border-radius:14px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;margin-left:4px;">👤 Profile</button>
             </td>
           </tr>`;
         }).join('');
@@ -5540,8 +5603,44 @@ async function loadAndOpen(name) {
 // =============================================================
 const TS_OUTCOMES = ['pending', 'won', 'lost', 'cancelled'];
 const TS_OUTCOME_LABEL = { pending: 'Pending', won: 'Won', lost: 'Lost', cancelled: 'Cancelled' };   // = the Quote_Log Outcome dropdown
-const TS_NO_QID = 'Save again to track Won/Lost';
-const TS_NOT_LOGGED = 'Not in the quote log yet — Won/Lost can’t be tracked';
+// ITEM 9 (owner 17 Nov): reps see Pending / Booked / Lost. The STORED + SENT value stays 'Won' (Quote_Log Outcome dropdown and the
+// server's setQuoteOutcome validate against it), so only the words on screen change. A Lost carries a reason (sent as `reason`).
+const TS_OUTCOME_SHOW = { pending: 'Pending', won: 'Booked', lost: 'Lost', cancelled: 'Cancelled' };
+const TS_LOST_REASONS = ['Price too high', 'Booked with another agent', 'Trip postponed or cancelled', 'No response from the client', 'Other'];
+const TS_NO_QID = 'Save again to track Booked/Lost';
+const TS_NOT_LOGGED = 'Not in the quote log yet — Booked/Lost can’t be tracked';
+function tsOutcomeShow_(s) { const k = String(s == null ? '' : s).trim().toLowerCase(); return TS_OUTCOME_SHOW[k] || 'Pending'; }
+/** A reason is plain text only: no < >, trimmed, 120 characters at most; '' = no usable reason. */
+function tsLostReasonClean_(t) { return String(t == null ? '' : t).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120); }
+/** "Reason: ..." for a Lost card whose row carries outcome_reason (the server sends it when it stores one); '' otherwise. HTML-escaped. */
+function tsOutcomeReasonLine_(r) {
+    if (!r || String(r.outcome || '').trim().toLowerCase() !== 'lost') return '';
+    const t = tsLostReasonClean_(r.outcome_reason);
+    return t ? 'Reason: ' + t.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
+}
+/** Ask why the quote was lost. Resolves to the reason text, or null if the rep dismisses the box. Small modal, same cream style. */
+function tsAskLostReason_() {
+    return new Promise((resolve) => {
+        const ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(44,24,16,.45);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        ov.innerHTML = '<div role="dialog" aria-modal="true" aria-label="Why was this quote lost?" style="background:#faf5ee;border-radius:12px;max-width:380px;width:100%;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.3);font-family:inherit;">'
+            + '<div style="font-family:Playfair Display,Georgia,serif;font-size:18px;color:#2c1810;margin-bottom:4px;">Why was this quote lost?</div>'
+            + '<div style="font-size:12px;color:#7a6458;margin-bottom:12px;">One tap. It helps us see what to fix.</div>'
+            + '<select id="tsLostWhy" style="width:100%;padding:9px;border:1px solid #d0cfc9;border-radius:8px;font-size:14px;margin-bottom:8px;">'
+            + TS_LOST_REASONS.map((x) => '<option>' + x + '</option>').join('') + '</select>'
+            + '<input id="tsLostNote" maxlength="100" placeholder="Add a few words (optional)" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d0cfc9;border-radius:8px;font-size:14px;margin-bottom:14px;">'
+            + '<div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" id="tsLostCancel" style="padding:8px 14px;border:1px solid #d0cfc9;background:#fff;border-radius:8px;cursor:pointer;">Cancel</button>'
+            + '<button type="button" id="tsLostOk" style="padding:8px 14px;border:0;background:#b85c38;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;">Save as Lost</button></div></div>';
+        const done = (v) => { ov.remove(); resolve(v); };
+        ov.addEventListener('click', (e) => { if (e.target === ov) done(null); });
+        ov.querySelector('#tsLostCancel').onclick = () => done(null);
+        ov.querySelector('#tsLostOk').onclick = () => {
+            const why = ov.querySelector('#tsLostWhy').value, note = ov.querySelector('#tsLostNote').value;
+            done(why === 'Other' && !tsLostReasonClean_(note) ? 'Other' : (note && tsLostReasonClean_(note) ? why + ' — ' + tsLostReasonClean_(note) : why));
+        };
+        document.body.appendChild(ov);
+    });
+}
 // setQuoteOutcome refusals (Mihir, clasp-dev #14) in words a rep can act on; the code stays in brackets for support
 const TS_OUTCOME_ERR = {
     not_found: 'this quote is not in the quote log yet', duplicate_quote_id: 'this quote id is in the quote log twice',
@@ -5579,10 +5678,17 @@ async function tsSaveOutcome_(sel, name, val) {
     const back = msg => { sel.value = prev; showToast(msg, 'error'); return false; };
     if (TS_OUTCOMES.indexOf(val) < 0) return back('Unknown status — nothing saved.');
     if (!qid) return back(TS_NO_QID + '.');
+    let reason = '';
+    if (val === 'lost') {   // ITEM 9: a Lost always carries a reason; a dismissed or blank box = nothing saved
+        reason = tsLostReasonClean_(await tsAskLostReason_());
+        if (!reason) { sel.value = prev; return false; }
+    }
     sel.disabled = true;
     let j = null;
     try {
-        const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'setQuoteOutcome', quote_id: qid, outcome: TS_OUTCOME_LABEL[val] }) });
+        const body = { action: 'setQuoteOutcome', quote_id: qid, outcome: TS_OUTCOME_LABEL[val] };
+        if (reason) body.reason = reason;
+        const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
         j = await r.json();
     } catch (e) { j = null; }
     sel.disabled = false;
@@ -5592,6 +5698,7 @@ async function tsSaveOutcome_(sel, name, val) {
                   : TS_OUTCOME_ERR[code] ? TS_OUTCOME_ERR[code] + ' (' + code + ')' : code;
         return back('Status not saved (' + why + '). Nothing changed — try again.');
     }
+    if (reason && j.reason_saved !== true) showToast('Lost is saved. The reason is not stored yet — the server update is still to come.', 'info');
     return true;
 }
 
@@ -5691,7 +5798,7 @@ async function loadSavedList() {
     <section class="mi-summary" aria-label="Itinerary summary">
       <article class="mi-sum total"><div class="mi-sum-copy"><span class="mi-sum-label">Saved itineraries</span><span class="mi-sum-cap">All saved records</span></div><strong class="mi-sum-val" id="miCountTotal">${list.length}</strong></article>
       <article class="mi-sum pending"><div class="mi-sum-copy"><span class="mi-sum-label">Pending</span><span class="mi-sum-cap">Awaiting a decision</span></div><strong class="mi-sum-val" id="miCountPending">${_miCount.pending}</strong></article>
-      <article class="mi-sum won"><div class="mi-sum-copy"><span class="mi-sum-label">Won</span><span class="mi-sum-cap">Confirmed itineraries</span></div><strong class="mi-sum-val" id="miCountWon">${_miCount.won}</strong></article>
+      <article class="mi-sum won"><div class="mi-sum-copy"><span class="mi-sum-label">Booked</span><span class="mi-sum-cap">Confirmed itineraries</span></div><strong class="mi-sum-val" id="miCountWon">${_miCount.won}</strong></article>
       <article class="mi-sum lost"><div class="mi-sum-copy"><span class="mi-sum-label">Lost</span><span class="mi-sum-cap">Closed proposals</span></div><strong class="mi-sum-val" id="miCountLost">${_miCount.lost}</strong></article>
     </section>
     <section aria-labelledby="miListHeading">
@@ -5704,7 +5811,7 @@ async function loadSavedList() {
           <label class="mi-search-wrap"><span class="mi-search-icon" aria-hidden="true">⌕</span>
             <input id="savedSearch" class="mi-search" type="search" oninput="filterSavedList()" placeholder="Search name, agent, or city…" aria-label="Search saved itineraries"></label>
           <select id="savedStatusFilter" class="mi-filter" onchange="filterSavedList()" aria-label="Filter by status">
-            <option value="all">All statuses</option><option value="pending">Pending</option><option value="won">Won</option><option value="lost">Lost</option>
+            <option value="all">All statuses</option><option value="pending">Pending</option><option value="won">Booked</option><option value="lost">Lost</option>
           </select>
           <button class="mi-new" type="button" onclick="startNewQuote(); switchAdminTab('itinerary');">＋ New itinerary</button>
         </div>
@@ -5725,7 +5832,7 @@ async function loadSavedList() {
             const cityList  = String(r.cities || '').split(',').map(c => c.trim()).filter(Boolean).join(' · ');
             const itinStatus = tsOutcomeOf_(r);   // WON/LOST (#184): Quote_Log Outcome, not the browser
             const _qid = tsQuoteIdOf_(r), _wlNote = tsOutcomeNote_(r);
-            const label = { pending: 'Pending', won: 'Won', lost: 'Lost' };
+            const label = { pending: 'Pending', won: 'Booked', lost: 'Lost' };
             const arg = r.paxName.replace(/'/g,"\\'");
             return `<article class="mi-card" data-name="${_miEsc(r.paxName.toLowerCase())}" data-cities="${_miEsc(String(r.cities || '').toLowerCase())}" data-agent="${_miEsc(String(r.savedBy || '').toLowerCase())}" data-status="${_miEsc(itinStatus)}">
               <div class="mi-identity"><h3 class="mi-name">${_miEsc(base)}${verBadge}${latestBadge}</h3><p class="mi-meta">Saved ${savedDate}</p></div>
@@ -5739,10 +5846,10 @@ async function loadSavedList() {
               <div class="mi-status-cell"><span class="mi-flabel">Status</span>
                 <span class="mi-pill" data-status="${_miEsc(itinStatus)}"><select class="mi-status" data-qid="${_miEsc(_qid)}" ${_wlNote ? `disabled title="${_wlNote}"` : ''} onchange="_miSetStatus(this,'${arg}',this.value)" aria-label="Status">
                   <option value="pending" ${itinStatus==='pending'?'selected':''}>Pending</option>
-                  <option value="won"     ${itinStatus==='won'?'selected':''}>Won</option>
+                  <option value="won"     ${itinStatus==='won'?'selected':''}>Booked</option>
                   <option value="lost"    ${itinStatus==='lost'?'selected':''}>Lost</option>
                   ${itinStatus==='cancelled' ? '<option value="cancelled" selected>Cancelled</option>' : ''}
-                </select></span>${_wlNote ? `<span class="mi-qid-note" style="display:block;font-size:10px;color:var(--ink4);margin-top:2px;">${_wlNote}</span>` : ''}
+                </select></span>${tsOutcomeReasonLine_(r) ? `<span class="mi-qid-note" style="display:block;font-size:10px;color:var(--ink3,#7a6458);margin-top:2px;">${tsOutcomeReasonLine_(r)}</span>` : ''}${_wlNote ? `<span class="mi-qid-note" style="display:block;font-size:10px;color:var(--ink4);margin-top:2px;">${_wlNote}</span>` : ''}
                 <time class="mi-saved-date">${savedDate}</time></div>
               <div class="mi-actions" aria-label="Actions for ${_miEsc(base)}">
                 <button class="mi-act mi-act-primary" onclick="loadAndOpen('${arg}')">↗ Open</button><button class="mi-act" onclick="loadAndPDF('${arg}')">▧ PDF</button>
@@ -7819,6 +7926,67 @@ function _vehicleLabelForDetails(typeCode) {
     default:               return 'Sedan or Van'; // 'auto' or anything unknown
   }
 }
+// XFER-END-01 (owner overnight brief P0-1, 18 Nov 2026): departure = LAST stay hotel -> main airport of the LAST city, never hotel -> hotel.
+// A 'BOTH' master row is oriented airport -> hotel, so reading match.to for a DEPARTURE printed the matched hotel (Frankfurt: 'The Cloud One ->
+// Le Meridien'). The airport side is whichever row text names an airport; none does -> '<City> Airport'. Pure, no DOM, node-testable.
+var _TS_AIRPORT_RX_ = /airport|aeroport|aeropuerto|aeroporto|flughafen|flygplats|lufthavn|lentoasema|\bterminal\b|\bhbf\b.*\bairport\b|\b(?:MUC|FRA|ZRH|GVA|CDG|ORY|LHR|LGW|FCO|MXP|AMS|BCN|MAD|VIE|PRG|CPH|ARN|OSL|ATH|IST|DXB|SYD|MEL|AKL|BNE|CNS|ZQN|CHC)\b/i;
+function _tsIsAirportText_(x) { return _TS_AIRPORT_RX_.test(String(x == null ? '' : x)); }
+function _tsAirportSide_(match, city) {
+  var fb = String(city || '').trim() + ' Airport';
+  if (!match) return fb;
+  var a = match.from, b = match.to;
+  if (_tsIsAirportText_(b)) return String(b).trim();
+  if (_tsIsAirportText_(a)) return String(a).trim();
+  return fb;
+}
+// Hard guard: a transfer record with a hotel on BOTH ends is refused (false) - used by the page, the test and the MC rule's scan.
+function _tsEndLegHotelBothEnds_(t) {
+  if (!t || (t.leg !== 'arrival' && t.leg !== 'departure' && !/^(arrival|departure)-/.test(String(t.legId || '')))) return false;
+  return !_tsIsAirportText_(t.from) && !_tsIsAirportText_(t.to);
+}
+// XFER-END-02 (B1, 18 Nov 2026): the saved arrival/departure leg must name the hotel the plan has NOW. Typing into the hotel-name box
+// changes currentPlan only, so the leg kept the hotel it was built with (the 13 'matches no stay in the plan' rows of the 17 Nov backup,
+// all saved before this sync reached LIVE on 17 Nov in 598fadd). Ported from LIVE app/index.html (ITEM 8 / C2) and hardened:
+//  - a hotel name typed with a doubled line ('X\nX') counts as 'X'; an own-arrangement stay ('on your own') is named '<City> hotel';
+//  - an end leg is found by legId OR leg ('arrival' / 'departure'); departure = LAST plan stay's hotel -> airport, arrival = airport -> FIRST;
+//  - a leg left with no airport on either end gets '<City> Airport' on the airport side (never hotel -> hotel);
+//  - TEXT-ONLY: never price, vehicle or date; a leg whose Details the agent typed (_detailsCustom) keeps its details. Returns true if changed.
+function _tsStayLabel_(stay) {
+  var raw = String((stay && stay.hotel && stay.hotel.name) || '');
+  var seen = [], out = [];
+  raw.split(/\r?\n/).forEach(function (l) { l = l.replace(/\s+/g, ' ').trim(); if (l && seen.indexOf(l.toLowerCase()) < 0) { seen.push(l.toLowerCase()); out.push(l); } });
+  var n = out.join(' ');
+  if (/^(on your own|own arrangement|own stay|self[- ]arranged)$/i.test(n)) return String((stay && stay.city) || '').trim() ? String(stay.city).trim() + ' hotel' : '';
+  return n;
+}
+function tsSyncEndLegsToPlan_() {
+  var changed = false;
+  try {
+    if (typeof currentPlan === 'undefined' || !Array.isArray(currentPlan) || !currentPlan.length) return false;
+    if (typeof selectedTransfers === 'undefined' || !Array.isArray(selectedTransfers)) return false;
+    var firstS = currentPlan[0], lastS = currentPlan[currentPlan.length - 1];
+    var fn = _tsStayLabel_(firstS), ln = _tsStayLabel_(lastS);
+    var vLabel = _vehicleLabelForDetails(((typeof getTravelConfigs === 'function' ? getTravelConfigs() : null) || {}).vehicleType);
+    selectedTransfers.forEach(function (t) {
+      if (!t) return;
+      var id = String(t.legId || '');
+      var arr = id.indexOf('arrival-') === 0 || (!id && t.leg === 'arrival');
+      var dep = id.indexOf('departure-') === 0 || (!id && t.leg === 'departure');
+      if (!arr && !dep) return;
+      var touched = false;
+      if (arr && fn && t.to !== fn) { t.to = fn; touched = true; }
+      if (dep && ln && t.from !== ln) { t.from = ln; touched = true; }
+      if (_tsEndLegHotelBothEnds_(t)) {   // still no airport on either end: repair the airport side, text only
+        var city = String(t.city || (arr ? firstS.city : lastS.city) || '').trim();
+        if (dep) t.to = city + ' Airport'; else t.from = city + ' Airport';
+        touched = true;
+      }
+      if (touched) { if (!t._detailsCustom) t.details = _buildTransferDetailsText(t.from, t.to, vLabel); changed = true; }
+    });
+  } catch (e) { console.warn('[tsSyncEndLegsToPlan_]', e); }
+  return changed;
+}
+
 function _buildTransferDetailsText(from, to, vehicleLabel) {
   var v = String(vehicleLabel || '').trim() || 'Sedan or Van';
   return 'One way Transfer from ' + (from || '') + ' to ' + (to || '') + ' in ' + v;
@@ -7873,11 +8041,12 @@ function optimizeTransfers(tBudgetTotal, paxCount) {
         const vPrice = _missing ? null : _vp;
         let from, to;
         if (direction === 'ARRIVAL') {
-            from = match ? (match.from || `${cityFallback} Airport`) : `${cityFallback} Airport`;
+            // XFER-END-01 (18 Nov): the airport side is the row side that NAMES an airport; a hotel-side row text is never used as the airport.
+            from = _tsAirportSide_(match, cityFallback);
             to   = hotelName || (match ? match.to : 'Hotel');
         } else if (direction === 'DEPARTURE') {
             from = hotelName || (match ? match.from : 'Hotel');
-            to   = match ? (match.to || `${cityFallback} Airport`) : `${cityFallback} Airport`;
+            to   = _tsAirportSide_(match, cityFallback);
         } else {
             // Inter-city leg
             from = match ? match.from : cityFallback;
@@ -7970,6 +8139,16 @@ function optimizeTransfers(tBudgetTotal, paxCount) {
         newLegs.push(buildLeg(`departure-${lastPlan.city}`, lastPlan.cout, lastPlan.city, dm, 'DEPARTURE', lastPlan?.hotel?.name || ''));
     }
 
+    // XFER-END-01 hard guard: no first/last transfer may keep a hotel on both ends (a manual/saved leg can still carry one). Repair the
+    // airport side, text only, and say so in the console; never price, vehicle or date.
+    newLegs.forEach(function (t) {
+        if (!_tsEndLegHotelBothEnds_(t)) return;
+        var dep = String(t.legId || '').indexOf('departure-') === 0 || t.leg === 'departure';
+        var ap = String(t.city || (dep ? lastPlan.city : firstPlan.city) || '').trim() + ' Airport';
+        if (dep) t.to = ap; else t.from = ap;
+        if (!t._detailsCustom) t.details = _buildTransferDetailsText(t.from, t.to, _vehicleLabelForDetails((getTravelConfigs() || {}).vehicleType));
+        console.warn('[XFER-END-01] hotel-to-hotel end leg repaired:', t.legId);
+    });
     selectedTransfers = newLegs;
 }
 
@@ -8215,7 +8394,7 @@ function renderTables() {
             <td class="p-2 border text-center font-bold" style="font-size:13px;">${formatDate(item.cout)}</td>
             <td class="text-center p-2 border"><span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--cream3);font-size:13px;font-weight:800;color:var(--ink2);">${_nights}</span></td>
             <td class="p-2 border" style="min-width:120px;">
-                <textarea onchange="(currentPlan[${planIdx}].hotel||(currentPlan[${planIdx}].hotel={})).name = this.value"
+                <textarea onchange="(currentPlan[${planIdx}].hotel||(currentPlan[${planIdx}].hotel={})).name = this.value; if (tsSyncEndLegsToPlan_() && typeof renderTables === 'function') renderTables();"
                     class="pdf-input w-full bg-transparent outline-none uppercase font-bold resize-none overflow-hidden"
                     style="font-size:13px;"
                     rows="1">${_h.name || ''}</textarea>
@@ -8535,7 +8714,9 @@ function renderTables() {
                         class="pdf-input w-full outline-none font-bold resize-none overflow-hidden"
                         style="font-size:13px;border:none;background:transparent;color:var(--ink);">${ic.fromTo}</textarea>
                 </td>
-                <td class="p-2 border">${tsFlightDetail_(ic) ? `<div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:2px;">${tsFlightDetail_(ic)}</div>` : ''}${_clsMapped
+                <td class="p-2 border">${tsFlightDetail_(ic) ? `<div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:2px;">${tsFlightDetail_(ic)}</div>` : ''}${(!covered && tsTrainSwapOk_(ic, masterData.intercity))
+                    ? `<select onchange="tsSwapTrainClass_(${idx}, this.value)" title="Swap this train leg between 2nd and 1st class (price from the Trains table)" style="font-size:12px;border:1px solid var(--ink4);border-radius:4px;background:transparent;color:var(--ink);padding:1px 4px;"><option value="economy"${String(ic.classType||'economy')==='1st'?'':' selected'}>2nd Class</option><option value="1st"${String(ic.classType||'')==='1st'?' selected':''}>1st Class${(tsTrainFare_(ic, masterData.intercity)||{}).p1>0?'':' (price manually)'}</option></select>${ic._fc1Missing ? '<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:2px;">1st class fare not in table: price manually</div>' : ''}`
+                    : _clsMapped
                     ? `<span style="font-size:12px;color:var(--ink4);font-style:italic;">${_clsLabel}</span>`
                     : `<textarea rows="1" placeholder="Scheduled" onchange="editIntercity(${idx}, 'notes', this.value)"
                         class="pdf-input w-full outline-none resize-none overflow-hidden"
@@ -10068,6 +10249,46 @@ function applyIntercitySwap(legId, item) {
     renderTables();
 }
 
+// TRAIN-1ST-01 (#24/#29, owner overnight brief P1-7): an agent can swap a TRAIN leg between 2nd and 1st class. The 1st-class price is the Trains
+// table's own firstClassPrice for that From+To (bidirectional, first matching row = the engine's rule) - NEVER a multiplier. A route with no
+// 1st-class price in the table does not price 1st class at 0 and does not guess: the leg is flagged 'price manually' (price blank = PRICE MISSING
+// banner). Pure functions, no DOM, node-testable. Touches only price / classType / notes / _price2nd / _fc1Missing on the leg; the billing hash
+// functions are untouched.
+function tsTrainFare_(ic, master) {
+  var n = function (x) { return String(x == null ? '' : x).trim().toLowerCase(); };
+  var a = n(ic && ic.from), b = n(ic && ic.to);
+  if ((!a || !b) && ic && ic.fromTo) { var m = String(ic.fromTo).split(/\s+to\s+/i); if (m.length === 2) { a = n(m[0]); b = n(m[1]); } }
+  if (!a || !b) return null;
+  var rows = master || [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if ((n(r.from) === a && n(r.to) === b) || (n(r.from) === b && n(r.to) === a)) {
+      return { p2: Number(r.price) || 0, p1: Number(r.firstClassPrice) > 0 ? Number(r.firstClassPrice) : 0 };
+    }
+  }
+  return null;
+}
+function tsTrainSwapOk_(ic, master) {
+  return !!ic && String(ic.mode || 'train').trim().toLowerCase() === 'train' && !ic._isSwissPassRow && !!tsTrainFare_(ic, master);
+}
+// Returns { classType, price, notes, _price2nd, _fc1Missing } for the leg after the swap, or null if the leg cannot be swapped.
+function tsTrainClassChange_(ic, cls, master) {
+  var fare = tsTrainFare_(ic, master);
+  if (!fare || !(cls === '1st' || cls === 'economy')) return null;
+  var p2 = fare.p2 > 0 ? fare.p2 : (Number(ic._price2nd) > 0 ? Number(ic._price2nd) : (String(ic.classType || 'economy') === 'economy' ? Number(ic.price) || 0 : 0));
+  if (cls === 'economy') return { classType: 'economy', price: p2 > 0 ? p2 : null, notes: '', _price2nd: p2 || null, _fc1Missing: false };
+  if (fare.p1 > 0) return { classType: '1st', price: fare.p1, notes: '1st Class', _price2nd: p2 || null, _fc1Missing: false };
+  return { classType: '1st', price: null, notes: '1st Class - price manually', _price2nd: p2 || null, _fc1Missing: true };   // never 0, never a multiplier
+}
+function tsSwapTrainClass_(index, cls) {
+  var ic = selectedIntercity[index]; if (!ic) return;
+  var ch = tsTrainClassChange_(ic, cls, masterData.intercity);
+  if (!ch) return;
+  ic.classType = ch.classType; ic.price = ch.price; ic.notes = ch.notes; ic._price2nd = ch._price2nd; ic._fc1Missing = ch._fc1Missing; ic.isManual = true;
+  if (ch._fc1Missing && typeof showToast === 'function') showToast('1st class fare is not in the table for this route: price it manually', 'warning');
+  if (typeof renderTables === 'function') renderTables();
+  if (typeof calculateBudgetInvestment === 'function') calculateBudgetInvestment();
+}
 function editIntercity(index, field, value) {
     if (!selectedIntercity[index]) return;
     if (field === 'price') {
@@ -11104,6 +11325,7 @@ async function computeFrontendHash(payload) {
 }
 
 function _buildCurrentPayload() {
+    try { tsSyncEndLegsToPlan_(); } catch (e) {}   // XFER-END-02: saved arrival/departure legs name the hotel the plan has NOW
     const cfg = getTravelConfigs();
     return {
         agentName:     window.currentUsername || '',
@@ -12436,7 +12658,7 @@ async function downloadExcel() {
       O.m.app_quotes.trips = [uniq(QW.w), uniq(QW.p)];
       O.m.app_quotes.f += ' Different trips = different Cities + Total Nights + Total PAX (the same trip saved again counts once).';
       var won = function (k) { return QW[k].filter(function (r) { return oc(r) === 'won'; }); };
-      put('won', won('w').length, won('p').length, 'Quote_Log rows logged in the week with Outcome = Won.', QCOLS, won('w').map(qrow), QN);
+      put('won', won('w').length, won('p').length, 'Quote_Log rows logged in the week with Outcome = Won (shown as Booked).', QCOLS, won('w').map(qrow), QN);
       var pend = function (k) { return QW[k].filter(function (r) { return oc(r) === 'pending'; }); };
       var sum = function (rows) { return Math.round(rows.reduce(function (s, r) { return s + gt(r); }, 0)); };
       put('open_value', sum(pend('w')), sum(pend('p')), 'Sum of Grand Total of the quotes logged in the week that are still Pending.', QCOLS, pend('w').slice().sort(function (a, b) { return gt(b) - gt(a); }).map(qrow), QN);
@@ -12640,7 +12862,7 @@ const group = (title, items0, cls) => { const items = items0.map(([k, l]) => [k,
 const KPI = [
   ['app_quotes', 'App quotes', '', '↗', 'up', v => v, m => `${m.trips[0]} different trips`],
   ['wa_quotes', 'WhatsApp bot quotes', 'blue', '◌', 'up', v => v, () => 'bot log: data coming'],
-  ['won', 'Won quotes', 'green', '✓', 'up', v => v, () => 'marked Won in Quote_Log'],
+  ['won', 'Booked quotes', 'green', '✓', 'up', v => v, () => 'marked Booked (stored as Won in Quote_Log)'],
   ['open_value', 'Open quote value', 'amber', '₹', null, inr, m => 'still Pending'],
   ['active_7d', 'Active agencies', 'teal', '◎', 'up', v => v, () => 'agents, staff left out'],
   ['pending_7d', 'Pending >7 days', 'red', '!', 'down', v => v, () => 'saved 8–30 days ago'],
@@ -12963,11 +13185,11 @@ function todo(pages, all) {
     let ages = [];
     if (qok) {
       const won = q.filter((r) => oc(r) === 'won'), lost = q.filter((r) => oc(r) === 'lost'), pend = q.filter((r) => oc(r) === 'pending');
-      put('v2_outcome', { won: won.length, lost: lost.length, pending: pend.length, all: q.length }, 'Quote_Log rows by Outcome (Won / Lost / Pending), all dates. The list shows the quotes marked Won or Lost.', QN, QCOLS.concat(['Outcome']), won.concat(lost).map((r) => qrow(r).concat([r.out])));
+      put('v2_outcome', { won: won.length, lost: lost.length, pending: pend.length, all: q.length }, 'Quote_Log rows by Outcome (Booked / Lost / Pending), all dates. The list shows the quotes marked Booked or Lost.', QN, QCOLS.concat(['Outcome']), won.concat(lost).map((r) => qrow(r).concat([r.out])));
       const d90 = q.filter((r) => dayOf(r.t) > today - 90 * DAY);
-      put('v2_book_rate', { won: d90.filter((r) => oc(r) === 'won').length, of: d90.length }, 'Won ÷ quotes logged in the last 90 days. Stays 0% until consultants mark Won.', QN);
-      put('v2_booked_value', Math.round(won.reduce((s, r) => s + (num(r.gt) || 0), 0)), 'Sum of Grand Total of the quotes marked Won (all dates).', QN, QCOLS, won.map(qrow));
-      put('v2_margin', Math.round(won.reduce((s, r) => s + (num(r.mka) || 0), 0)), 'Sum of Markup Amount of the quotes marked Won = what TripStore keeps on booked trips. Never the wallet money.', QN, QCOLS.concat(['Markup ₹']), won.map((r) => qrow(r).concat([Math.round(num(r.mka) || 0)])));
+      put('v2_book_rate', { won: d90.filter((r) => oc(r) === 'won').length, of: d90.length }, 'Booked ÷ quotes logged in the last 90 days. Stays 0% until consultants mark Booked.', QN);
+      put('v2_booked_value', Math.round(won.reduce((s, r) => s + (num(r.gt) || 0), 0)), 'Sum of Grand Total of the quotes marked Booked (all dates).', QN, QCOLS, won.map(qrow));
+      put('v2_margin', Math.round(won.reduce((s, r) => s + (num(r.mka) || 0), 0)), 'Sum of Markup Amount of the quotes marked Booked = what TripStore keeps on booked trips. Never the wallet money.', QN, QCOLS.concat(['Markup ₹']), won.map((r) => qrow(r).concat([Math.round(num(r.mka) || 0)])));
       const age = (r) => Math.round((today - dayOf(r.t)) / DAY);
       ages = [['0–7 days', 0, 7], ['8–30 days', 8, 30], ['31–90 days', 31, 90], ['over 90 days', 91, 1e6]].map(([lab, a, b]) => {
         const k = 'v2_pend_' + lab.replace('–', 'to').replace(/\W/g, '').toLowerCase(), rows = pend.filter((r) => a <= age(r) && age(r) <= b).sort((x, y) => x.t - y.t);
@@ -13028,11 +13250,11 @@ function todo(pages, all) {
     const srcBars = srcs.map(([k, lab]) => has(k) ? `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"><span class="v2-bf v2-fill" style="width:${Math.round(M[k].v / sMax * 100)}%"></span></span><b>${inr(M[k].v)}</b></div>` : '').join('')
       + [['v2_src_wa_agent', 'WhatsApp · agent'], ['v2_src_wa_b2c', 'WhatsApp · B2C']].map(([k, lab]) => `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"></span><b class="v2-na">data coming</b></div>`).join('');
     const outcomeTiles = has('v2_outcome')
-      ? tile('v2_outcome', `${inr(o.won + o.lost)} <small>of ${inr(o.all)}</small>`, 'quotes marked Won or Lost', `Won ${inr(o.won)} · Lost ${inr(o.lost)} · Pending ${inr(o.pending)}`, o.won + o.lost ? 'ok' : 'bad', 'Quotes by outcome')
+      ? tile('v2_outcome', `${inr(o.won + o.lost)} <small>of ${inr(o.all)}</small>`, 'quotes marked Booked or Lost', `Booked ${inr(o.won)} · Lost ${inr(o.lost)} · Pending ${inr(o.pending)}`, o.won + o.lost ? 'ok' : 'bad', 'Quotes by outcome')
         + tile('v2_book_rate', pct(br.won, br.of), 'quote → booking', `${inr(br.won)} won of ${inr(br.of)} quotes in 90 days`, br.won ? 'ok' : 'bad')
-        + tile('v2_booked_value', '₹' + inr(M.v2_booked_value.v), 'booked value', 'Grand total of Won quotes', M.v2_booked_value.v ? 'ok' : 'bad')
-      : ccTile('v2_outcome', 'quotes marked Won or Lost') + ccTile('v2_book_rate', 'quote → booking') + ccTile('v2_booked_value', 'booked value');
-    const moneyTiles = (has('v2_margin') ? tile('v2_margin', '₹' + inr(M.v2_margin.v), 'booked margin', 'markup on Won quotes = money earned', M.v2_margin.v ? 'ok' : 'bad') : ccTile('v2_margin', 'booked margin'))
+        + tile('v2_booked_value', '₹' + inr(M.v2_booked_value.v), 'booked value', 'Grand total of Booked quotes', M.v2_booked_value.v ? 'ok' : 'bad')
+      : ccTile('v2_outcome', 'quotes marked Booked or Lost') + ccTile('v2_book_rate', 'quote → booking') + ccTile('v2_booked_value', 'booked value');
+    const moneyTiles = (has('v2_margin') ? tile('v2_margin', '₹' + inr(M.v2_margin.v), 'booked margin', 'markup on Booked quotes = money earned', M.v2_margin.v ? 'ok' : 'bad') : ccTile('v2_margin', 'booked margin'))
       + (has('v2_fees') ? tile('v2_fees', wk(M.v2_fees.v, 1), 'quote fees charged · history only', 'wallet DEBIT rows (per-quote charges); free forever since 16 Nov', 'plain') + tile('v2_topups', wk(M.v2_topups.v, 1), 'wallet top-ups · history only', 'wallet CREDIT rows; free forever since 16 Nov', 'plain')
         : ccTile('v2_fees', 'quote fees charged · history only') + ccTile('v2_topups', 'wallet top-ups · history only'));
     const la = M.v2_src_last_agent.v || {}, ae = M.v2_src_agents_ever.v || {};
@@ -13040,8 +13262,8 @@ function todo(pages, all) {
       + (has('v2_src_agents_ever') ? tile('v2_src_agents_ever', `${inr(ae.n)} <small>of ${inr(ae.of)}</small>`, 'agent accounts that ever quoted', 'role AGENT / USER in Users', 'warn') : ccTile('v2_src_agents_ever', 'agent accounts that ever quoted'))
       + ccTile('v2_src_b2c_share', 'of WhatsApp quotes are B2C');
     const w2 = head('v2-h-now', '◎', 'Current reality', 'won / lost · money earned · speed · where quotes come from') + `<div class="v2-grid v2-g2">` +
-      card('v2-c-terra', '✓', 'Won / lost and booked value', 'Which quotes became bookings and what they were worth. It stays at 0 until consultants mark Won or Lost.',
-        `<div class="v2-tiles v2-t3">${outcomeTiles}</div><p class="v2-how"><b>Marker:</b> the consultant who owns the quote presses Won or Lost on My Itineraries on the day the client pays the deposit or says no. <b>Open:</b> who marks and from which date (Sumit).</p>`,
+      card('v2-c-terra', '✓', 'Booked / lost and booked value', 'Which quotes became bookings and what they were worth. It stays at 0 until consultants mark Booked or Lost.',
+        `<div class="v2-tiles v2-t3">${outcomeTiles}</div><p class="v2-how"><b>Marker:</b> the consultant who owns the quote presses Booked or Lost on My Itineraries on the day the client pays the deposit or says no. <b>Open:</b> who marks and from which date (Sumit).</p>`,
         'Source: Quote_Log, all rows · Outcome, Grand Total') +
       card('v2-c-sage', '₹', 'Money earned, kept apart from wallet money', 'What TripStore keeps on booked trips, next to the wallet money agents are charged per quote or prepay.',
         `<div class="v2-tiles v2-t3">${moneyTiles}</div><p class="v2-how">The first window's "Revenue" is called <b>Quote fees</b>: it counts wallet DEBIT rows (charges), not top-ups.</p>`,
@@ -13055,8 +13277,8 @@ function todo(pages, all) {
         'Source: Quote_Log + Users (all dates) · WhatsApp: bot log, data coming') + `</div>`;
     const rw = M.v2_rework.v || {}, ls = M.v2_link_saved && M.v2_link_saved.v, lb = M.v2_link_blank && M.v2_link_blank.v, ld = M.light_days;
     const TODO = [
-      ['b', 'v2_outcome', has('v2_outcome') ? `${inr(o.won + o.lost)} of ${inr(o.all)} quotes marked Won or Lost` : 'Won / Lost not readable', 'Sumit: who marks, from when', L.wl],
-      ['b', 'v2_margin', 'Booked margin and booked value can\'t be counted until Won is marked', 'Sumit (same as above)', L.wl],
+      ['b', 'v2_outcome', has('v2_outcome') ? `${inr(o.won + o.lost)} of ${inr(o.all)} quotes marked Booked or Lost` : 'Booked / Lost not readable', 'Sumit: who marks, from when', L.wl],
+      ['b', 'v2_margin', 'Booked margin and booked value can\'t be counted until Booked is marked', 'Sumit (same as above)', L.wl],
       ['b', 'v2_app_speed', 'App: time from request to first quote not recorded', 'CC: add the column', L.card],
       ['b', 'v2_followup', `${inr((ages.find((r) => /over/.test(r[1])) || [0, 0, 0])[2])} pending quotes older than 90 days; no last-contact date`, 'Sumit: sales follow-up · CC: column', L.card],
       ['b', 'v2_wa_speed', 'WhatsApp bot numbers (chats, quotes, speed, B2C) not readable in the app', 'CC: how the app may read the bot logs', L.i207],
@@ -13279,7 +13501,7 @@ function todo(pages, all) {
   F.status = (s) => {
     const k = String(s || 'Pending').trim();   // Pending = the approved page's classes; Won / Lost = inline colours (their classes are not in the captured CSS)
     if (!/^(won|lost)$/i.test(k)) return `<span class="bg-[#FEF3C7] text-[#92400E] text-[10px] font-bold px-2 py-0.5 rounded-full">${F.e(k)}</span>`;
-    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="${/^won$/i.test(k) ? 'background:#D1FAE5;color:#065F46' : 'background:#F1F5F9;color:#475569'}">${F.e(k)}</span>`;
+    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="${/^won$/i.test(k) ? 'background:#D1FAE5;color:#065F46' : 'background:#F1F5F9;color:#475569'}">${F.e(tsOutcomeShow_(k))}</span>`;
   };
   // "Cost per quote by part" tiles (build_quote_data.js): share of the four parts' total, bar = share
   F.costTiles = (rev) => {
@@ -14204,7 +14426,21 @@ const TS_BIZ_CALLS = ['getDashboardQuotes', 'getAllAgents', 'getWalletSummary', 
 let _tsBizAt = 0, _tsBizBusy = null, _tsBizSized = false;
 // phones: the frame tells its height (one number, postMessage); the tab then shows the whole page (desktop keeps the one-screen frame)
 const TS_BIZ_HIDE_WALLET = '<style>/* owner 18 Nov: wallet cards hidden (free forever); data kept, only the display is hidden */[data-c6="revenue"],[data-c6="paying"],[data-c6="v2_fees"],[data-c6="v2_topups"]{display:none!important}</style>';
-const TS_BIZ_SIZE = TS_BIZ_HIDE_WALLET + '<script>(function(){function s(){parent.postMessage({c6h:document.documentElement.scrollHeight},"*")}addEventListener("load",s);addEventListener("resize",s);setTimeout(s,400)})()</scr' + 'ipt>';
+// DASH-CUT-01 (owner 18 Nov, item 5): the dashboard shows only what is REAL today. (a) DATE FLOOR: counting starts 18 Nov 2026 - the quote list is cut
+// page-side right after the read (rows with 'at' before the floor are not used); nothing is deleted or changed in the sheet, the old rows stay in
+// Quote_Log and in the dated backup copy. (b) PRUNE: after the page is drawn in its frame, every number that has no data ('data coming',
+// "couldn't load", 'needs ...', a dash) or is zero is hidden, and a card left with nothing is hidden. Display only: the numbers are still computed.
+const TS_BIZ_FLOOR = '2026-11-18';
+const TS_BIZ_PRUNE = '<script>(function(){var NO=/^\\s*(?:(?:₹|rs\\.?)\\s*)?0+(?:[.,]0+)?\\s*(?:%|₹)?\\s*$|^\\s*[—–-]\\s*$|n\\/a|data coming|couldn.t load|not available|needs\\b/i;' +
+  'function txt(e){return (e&&e.textContent||"").replace(/\\s+/g," ").trim()}' +
+  'function val(e){var v=e.querySelector(".mv,.kpi-value,.pend,.kpi-na,b,em.na");return v?txt(v):""}' +
+  'function hide(e){e.style.display="none";e.setAttribute("data-pruned","1")}' +
+  'function run(){var M=document.querySelectorAll(".mrow,.kpi,.v2-tile,.fstep,.hp");' +
+  'for(var i=0;i<M.length;i++){var e=M[i],v=val(e);if(e.querySelector(".pend,.kpi-na,em.na")||e.classList.contains("wait")||e.classList.contains("v2-need")||e.classList.contains("diwali")||NO.test(v))hide(e)}' +
+  'var L=document.querySelectorAll(".later,.lt,.foot,.diwali");for(var j=0;j<L.length;j++)if(/data coming|needs cc|numbers with data/i.test(txt(L[j])))hide(L[j]);' +
+  'var C=document.querySelectorAll("section,.card,.v2-card,.panel");for(var k=0;k<C.length;k++){var c=C[k];var all=c.querySelectorAll(".mrow,.kpi,.v2-tile,.fstep,.hp");if(!all.length)continue;var vis=0;for(var m=0;m<all.length;m++)if(all[m].getAttribute("data-pruned")!=="1")vis++;if(!vis&&!c.querySelector("table,canvas,svg,li"))hide(c)}}' +
+  'addEventListener("load",function(){try{run()}catch(e){}});setTimeout(function(){try{run()}catch(e){}},300)})()' + '<' + '/script>';
+const TS_BIZ_SIZE = TS_BIZ_HIDE_WALLET + TS_BIZ_PRUNE + '<script>(function(){function s(){parent.postMessage({c6h:document.documentElement.scrollHeight},"*")}addEventListener("load",s);addEventListener("resize",s);setTimeout(s,400)})()</scr' + 'ipt>';
 function _tsBizSize_(e) {
     const fr = document.getElementById('businessFrame');
     if (!fr || e.source !== fr.contentWindow || !e.data || typeof e.data.c6h !== 'number' || !(e.data.c6h > 0)) return;
@@ -14264,6 +14500,7 @@ async function loadBusinessDashboard(force) {
     _tsBizBusy = (async () => {
         try {
             const [quotes, agents, wallet, pdf, saved] = await Promise.all(TS_BIZ_CALLS.map(_tsBizGet_));
+            if (quotes && Array.isArray(quotes.rows)) quotes.rows = quotes.rows.filter((r) => String((r && r.at) || '').slice(0, 10) >= TS_BIZ_FLOOR);   // DASH-CUT-01: count from 18 Nov, page-side only
             const names = {};
             if (Array.isArray(agents) && window.crypto && crypto.subtle) for (const a of agents) { const u = String((a && a.username) || '').trim(); if (u) names[await _tsBizHash_(u.toLowerCase())] = u; }
             const ist = new Date(Date.now() + 330 * 60000);
@@ -14462,7 +14699,7 @@ async function loadQuoteDashboard(force = false) {
     <div class="db-kpi-grid">
       <div class="db-kpi db-kpi-blue"><div class="dk-icon">📋</div><div class="dk-label">Total Quotes</div><div class="dk-value">${total}</div><div class="dk-sub">This week: ${thisWeek} ${vDiff!==0?`<span class="db-trend ${vDiff>0?'db-trend-up':'db-trend-down'}">${vDiff>0?'▲':'▼'}${Math.abs(vDiff)}</span>`:''}</div></div>
       <div class="db-kpi db-kpi-green"><div class="dk-icon">💰</div><div class="dk-label">Total GMV</div><div class="dk-value">₹${(totalGMV/100000).toFixed(1)}L</div><div class="dk-sub">Avg markup ${avgMarkup}%</div></div>
-      <div class="db-kpi db-kpi-purple"><div class="dk-icon">🏆</div><div class="dk-label">Conversion Rate</div><div class="dk-value">${convRate}%</div><div class="dk-sub">${won} Won · ${lost} Lost · ${total-won-lost} Pending</div></div>
+      <div class="db-kpi db-kpi-purple"><div class="dk-icon">🏆</div><div class="dk-label">Conversion Rate</div><div class="dk-value">${convRate}%</div><div class="dk-sub">${won} Booked · ${lost} Lost · ${total-won-lost} Pending</div></div>
       <div class="db-kpi db-kpi-teal"><div class="dk-icon">📈</div><div class="dk-label">Avg Utilisation</div><div class="dk-value">${avgUtil}${avgUtil!=='N/A'?'%':''}</div><div class="dk-sub">${withBudget.length} quotes with budget set</div></div>
     </div>
     <div class="db-kpi-grid">
@@ -14517,12 +14754,12 @@ async function loadQuoteDashboard(force = false) {
           <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9;">
             <div><div style="font-weight:700;font-size:12px;">${q.paxName}</div><div style="font-size:10px;color:#94a3b8;">${q.cities} · ${q.travelMonth}</div></div>
             <div style="text-align:right;"><div style="font-size:14px;font-weight:900;color:#dc2626;">${q.utilPct}%</div><div style="font-size:10px;color:#dc2626;">₹${fmtD((q.grandTotal||0)-(q.budgetEntered||0))} over</div></div>
-            <span class="db-pill ${q.outcome==='Won'?'db-pill-green':q.outcome==='Lost'?'db-pill-red':'db-pill-amber'}">${q.outcome}</span>
+            <span class="db-pill ${q.outcome==='Won'?'db-pill-green':q.outcome==='Lost'?'db-pill-red':'db-pill-amber'}">${tsOutcomeShow_(q.outcome)}</span>
           </div>`).join('')}
       </div>
       <div class="db-card">
         <h3>Outcome Breakdown</h3>
-        ${[['Won',won,'#16a34a'],['Pending',total-won-lost,'#d97706'],['Lost',lost,'#dc2626']].map(([label,n,col])=>`
+        ${[['Booked',won,'#16a34a'],['Pending',total-won-lost,'#d97706'],['Lost',lost,'#dc2626']].map(([label,n,col])=>`
           <div class="db-bar-row">
             <div class="db-bar-label">${label}</div>
             <div class="db-bar-track"><div class="db-bar-fill" style="width:${total?(n/total*100):0}%;background:${col}">${n>0?n:''}</div></div>
@@ -14557,7 +14794,7 @@ async function loadQuoteDashboard(force = false) {
                 <td class="tr" style="font-weight:700;color:${q.budgetFlag==='OVER'?'#dc2626':q.budgetFlag==='✅ TARGET'?'#16a34a':'inherit'}">${q.utilPct||'—'}${q.utilPct?'%':''}</td>
                 <td>${q.budgetFlag==='✅ TARGET'?'<span class="db-pill db-pill-green">✅ Target</span>':q.budgetFlag==='OVER'?'<span class="db-pill db-pill-red">Over</span>':q.budgetFlag==='NEAR'?'<span class="db-pill db-pill-amber">Near</span>':q.budgetFlag==='UNDER'?'<span class="db-pill db-pill-blue">Under</span>':'<span class="db-pill db-pill-grey">—</span>'}</td>
                 <td>${q.category||'—'}</td>
-                <td style="font-weight:700;color:${q.outcome==='Won'?'#16a34a':q.outcome==='Lost'?'#dc2626':'#d97706'}">${q.outcome||'Pending'}</td>
+                <td style="font-weight:700;color:${q.outcome==='Won'?'#16a34a':q.outcome==='Lost'?'#dc2626':'#d97706'}">${tsOutcomeShow_(q.outcome)}</td>
               </tr>`).join('')}
           </tbody>
         </table>
