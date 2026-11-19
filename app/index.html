@@ -9,7 +9,6 @@
 <meta name="robots" content="noindex,nofollow,noarchive">
 <style>#tab-signup{display:none!important}#ts-dev-ribbon{position:fixed;top:0;left:0;right:0;z-index:99999;background:#b4532a;color:#fff;font:600 12px/22px system-ui,sans-serif;text-align:center;letter-spacing:.04em}body{padding-top:22px}</style>
 
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- F06 cache-bust: app logic is INLINE in this document, so the cache-bust target
@@ -96,11 +95,6 @@ html{height:100%;overflow:hidden;}body{height:100%;font-family:var(--sans);backg
   font-size:9px;color:#b85c38;font-weight:700;
   text-transform:uppercase;letter-spacing:.5px;
 }
-/* FREE FOREVER (owner 17 Nov 02:35): header pill + calm info toast */
-#freeForeverPill{display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#fff;background:#b85c38;border-radius:999px;padding:4px 11px;box-shadow:0 1px 0 rgba(184,92,56,.35);}
-#signupFreeForever{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:#fbf3ea;border:1px solid #e7c9ae;color:#6b3a22;font-size:12px;font-weight:700;text-align:center;}
-#signupFreeForever b{color:#b85c38;font-family:'Playfair Display',Georgia,serif;font-size:14px;letter-spacing:.2px;}
-.toast.toast-info{background:#fbf3ea;color:#6b3a22;border:1px solid #e7c9ae;box-shadow:0 4px 14px rgba(107,58,34,.18);white-space:normal;line-height:1.45;max-width:min(420px,calc(100vw - 40px));margin-top:44px;}   /* wraps inside the screen; sits just below the header so Logout stays reachable */
 #walletBadge{
   cursor:pointer;background:rgba(184,92,56,0.12);
   border:1px solid rgba(184,92,56,0.2);border-radius:8px;
@@ -752,7 +746,7 @@ textarea.pdf-input{
 .tsw-bar .tsw-count{margin-left:auto;background:#b85c38;color:#fff;padding:5px 11px;border-radius:20px;font-size:12px !important;font-weight:700;white-space:nowrap;}
 .modal-box.ts-modal-hotel #hotelListContainer{padding:6px 14px 10px !important;background:#fff;}
 .modal-box.ts-modal-hotel #hotelListContainer > * + *{margin-top:0 !important;}
-.modal-box.ts-modal-hotel .hotel-swap-item.tsw-row{display:block;padding:3px 12px;background:#fff;border:0;border-bottom:1px solid #eee6da;border-radius:0;}
+.modal-box.ts-modal-hotel .hotel-swap-item.tsw-row{display:block;padding:20px 14px;   /* round 3 (owner 17 Nov): more space, 8-9 rows per screen */ background:#fff;border:0;border-bottom:1px solid #eee6da;border-radius:0;}
 .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row:hover{background:#faf5ee;}
 .modal-box.ts-modal-hotel .hotel-swap-item.tsw-near{background:#f2f7f2;box-shadow:inset 3px 0 0 #7fa383;}
 .modal-box.ts-modal-hotel .hotel-swap-item.tsw-near:hover{background:#e9f2e9;}
@@ -768,6 +762,8 @@ textarea.pdf-input{
 .tsw-meal{flex-shrink:0;font-size:10.5px;background:#eef4ee;border:1px solid #c9dcc9;color:#35603a;padding:0 6px;border-radius:3px;}
 .tsw-diff{margin-left:auto;flex-shrink:0;font-size:12px;}
 .tsw-diff small{font-size:10.5px;color:#7a6458;}
+/* round 3 phone fix (CC 17 Nov): "₹X cheaper · 3 nights" is longer than the old "−₹X · 3N"; at 390px 9 of 30 rows overflowed. Let the meta line wrap, price on its own line. */
+@media (max-width:480px){ .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-l2{flex-wrap:wrap;white-space:normal;row-gap:4px;} .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-room{flex:0 1 auto;max-width:100%;} }
 #currentHotelBar.tsw-cur{padding:4px 16px !important;}
 #currentHotelBar.tsw-cur > div > div:first-child{display:none;}
 #currentHotelBar.tsw-cur > div:last-child > div{display:inline;margin-left:6px;}
@@ -1728,7 +1724,6 @@ input[type="date"]#quickStartDate:focus {
 <div id="ts-dev-ribbon">DEV / TEST ENVIRONMENT - not the live product - interns only</div>
 
 
-
 <div id="toast-container"></div>
 
 <!-- LOGIN SCREEN -->
@@ -1746,7 +1741,6 @@ input[type="date"]#quickStartDate:focus {
       <input type="password" id="passInput" class="login-input" placeholder="Password" style="letter-spacing:.25em;">
     </div>
     <div id="signup-fields" class="hidden" style="text-align:left;">
-      <div id="signupFreeForever">Free forever <span style="font-weight:600;">· no charge for quotes or PDFs</span></div>
       <div style="margin-bottom:8px;"><label style="font-size:9px;font-weight:700;color:var(--ink4);text-transform:uppercase;display:block;margin-bottom:3px;">Travel Agency Name</label><input type="text" id="signupAgency" class="login-input" placeholder="e.g. Sunrise Travels Pvt Ltd"></div>
       <div style="margin-bottom:8px;"><label style="font-size:9px;font-weight:700;color:var(--ink4);text-transform:uppercase;display:block;margin-bottom:3px;">Your Full Name</label><input type="text" id="signupPerson" class="login-input" placeholder="e.g. Rahul Sharma"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
@@ -1780,7 +1774,6 @@ input[type="date"]#quickStartDate:focus {
   <button id="navBtn-agents" class="ts-nav-btn admin-only-tab" style="display:none;" onclick="switchAdminTab('agents')">🏢 Agents</button>
   <button id="navBtn-business" class="ts-nav-btn admin-only-tab" style="display:none;" onclick="switchAdminTab('business')">▦ Business</button>
   <div class="ts-nav-right">
-    <span id="freeForeverPill" title="No charge for quotes or PDFs">Free forever</span>
     <div id="walletBadge" onclick="toggleWalletDropdown()">
       <span style="color:#b85c38;font-size:10px;font-weight:700;opacity:.7;">WALLET</span>
       <span id="walletBalanceDisplay" style="color:#16a34a;font-size:13px;font-weight:800;">₹0</span>
@@ -4426,10 +4419,10 @@ function tsTableAutoGrow_(root) {
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
-    toast.className = `toast ${type === 'success' ? 'bg-green-600' : type === 'info' ? 'toast-info' : 'bg-red-600'}`;   // 'info' = calm, not an error (free-forever limit message)
+    toast.className = `toast ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
     toast.innerText = msg;
     container.appendChild(toast);
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, type === 'info' ? 9000 : 3000);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
 }
 
 // =============================================================
@@ -4764,68 +4757,6 @@ function syncColorFromHex() {
     if (/^#[0-9a-fA-F]{6}$/.test(hex)) document.getElementById('profileBrandColor').value = hex;
 }
 
-// ADMIN-PROFILE-01 (owner overnight brief P1-8): an ADMIN opens any agent's profile from the Agents tab, views and edits it.
-// Backend: getAgentProfile / saveAgentProfile take the named username ONLY when the session role is ADMIN (P1 option_BC; same in fit-dev), anyone
-// else is forced to their own row, so this window cannot be used to edit another agent by a non-admin. Agency name stays read-only (it is
-// the sign-up name, not a profile field). Pure builder first (node-testable), then the DOM.
-function tsAdminProfilePayload_(username, v) {
-  v = v || {};
-  var colour = (typeof HEADER_COLOURS !== 'undefined' && HEADER_COLOURS[v.brandColor]) ? v.brandColor : 'terracotta';
-  return { action: 'saveAgentProfile', username: String(username || ''), profile: {
-    logoUrl: String(v.logoUrl || '').trim(), brandColor: colour, contactPhone: String(v.contactPhone || '').trim(),
-    contactEmail: String(v.contactEmail || '').trim(), website: String(v.website || '').trim() } };
-}
-function tsAdminProfileClose_() { var o = document.getElementById('tsAdminProfileOverlay'); if (o) o.remove(); }
-async function tsAdminProfileOpen_(username) {
-  if (typeof isAdmin !== 'undefined' && !isAdmin) return;
-  tsAdminProfileClose_();
-  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); };
-  var o = document.createElement('div'); o.id = 'tsAdminProfileOverlay';
-  o.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:9999;';
-  o.innerHTML = '<div style="background:#fff;border-radius:14px;padding:22px 26px;width:min(520px,94vw);max-height:90vh;overflow:auto;">'
-    + '<div style="font-family:var(--serif);font-size:20px;font-style:italic;margin-bottom:4px;">Agent profile</div>'
-    + '<div style="font-size:12px;color:#64748b;margin-bottom:14px;">' + esc(username) + '</div>'
-    + '<div id="tsApBody" style="font-size:12px;color:#64748b;">Loading...</div></div>';
-  o.addEventListener('click', function (e) { if (e.target === o) tsAdminProfileClose_(); });
-  document.body.appendChild(o);
-  var data;
-  try {
-    var res = await fetch(API_URL + '?action=getAgentProfile&username=' + encodeURIComponent(username));
-    data = await res.json();
-  } catch (e) { document.getElementById('tsApBody').textContent = 'Could not load this profile.'; return; }
-  var cols = Object.keys(HEADER_COLOURS).map(function (k) { return '<option value="' + k + '"' + (k === (data.brandColor || 'terracotta') ? ' selected' : '') + '>' + HEADER_COLOURS[k].label + '</option>'; }).join('');
-  var inp = 'width:100%;margin-top:3px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;';
-  document.getElementById('tsApBody').innerHTML =
-      '<label style="font-size:11px;font-weight:700;color:#334155;">Agency name (read-only)</label><input readonly value="' + esc(data.agencyName) + '" style="' + inp + 'background:#f8fafc;">'
-    + '<div style="margin-top:10px;display:flex;gap:12px;align-items:center;"><img id="tsApLogoPrev" src="' + esc(data.logoUrl) + '" alt="" style="max-height:60px;max-width:120px;object-fit:contain;' + (data.logoUrl ? '' : 'display:none;') + '"><div><label style="font-size:11px;font-weight:700;color:#334155;">Logo</label><br><input id="tsApLogoFile" type="file" accept="image/png,image/jpeg" style="font-size:11px;"></div></div>'
-    + '<input id="tsApLogoUrl" type="hidden" value="' + esc(data.logoUrl) + '">'
-    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Header colour</label><select id="tsApColour" style="' + inp + '">' + cols + '</select>'
-    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Contact phone</label><input id="tsApPhone" value="' + esc(data.contactPhone) + '" style="' + inp + '">'
-    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Contact email</label><input id="tsApEmail" value="' + esc(data.contactEmail) + '" style="' + inp + '">'
-    + '<label style="display:block;margin-top:10px;font-size:11px;font-weight:700;color:#334155;">Website</label><input id="tsApWeb" value="' + esc(data.website) + '" style="' + inp + '">'
-    + '<div id="tsApMsg" style="min-height:18px;margin-top:10px;font-size:12px;"></div>'
-    + '<div style="display:flex;gap:10px;margin-top:6px;"><button id="tsApSave" class="btn-terra" style="padding:9px 24px;">Save profile</button><button onclick="tsAdminProfileClose_()" style="padding:9px 18px;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer;">Close</button></div>';
-  document.getElementById('tsApLogoFile').onchange = function () {
-    var f = this.files[0]; if (!f) return;
-    var rd = new FileReader();
-    rd.onload = function (ev) { var im = new Image(); im.onload = function () {
-      var r = Math.min(200 / im.width, 200 / im.height, 1), c = document.createElement('canvas'); c.width = Math.round(im.width * r); c.height = Math.round(im.height * r);
-      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); var u = c.toDataURL('image/jpeg', 0.75);
-      document.getElementById('tsApLogoUrl').value = u; var pv = document.getElementById('tsApLogoPrev'); pv.src = u; pv.style.display = ''; document.getElementById('tsApMsg').textContent = 'Logo ready: click Save profile'; };
-      im.src = ev.target.result; };
-    rd.readAsDataURL(f);
-  };
-  document.getElementById('tsApSave').onclick = async function () {
-    var msg = document.getElementById('tsApMsg');
-    var body = tsAdminProfilePayload_(username, { logoUrl: document.getElementById('tsApLogoUrl').value, brandColor: document.getElementById('tsApColour').value,
-      contactPhone: document.getElementById('tsApPhone').value, contactEmail: document.getElementById('tsApEmail').value, website: document.getElementById('tsApWeb').value });
-    try {
-      var r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) }); var d = await r.json();
-      if (d.success) { msg.style.color = '#16a34a'; msg.textContent = 'Saved'; } else { msg.style.color = '#dc2626'; msg.textContent = 'Save failed' + (d.error ? ': ' + d.error : ''); }
-    } catch (e) { msg.style.color = '#dc2626'; msg.textContent = 'Connection error'; }
-  };
-}
-
 async function saveAgentProfileData() {
     const msg = document.getElementById('profileSaveMsg');
     const hex = document.getElementById('profileBrandColorHex').value.trim() || document.getElementById('profileBrandColor').value;
@@ -5038,7 +4969,6 @@ async function loadAgentManagement(opts) {
             <td style="padding:10px 12px;font-size:11px;color:#94a3b8;">${a.lastLogin || '—'}</td>
             <td style="padding:10px 12px;text-align:center;">
               <button onclick="openPasswordResetModal('${esc(a.username)}')" style="background:#fff;color:#a55b3a;border:1px solid #a55b3a;border-radius:14px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;">🔑 Reset</button>
-              <button onclick="tsAdminProfileOpen_('${esc(a.username)}')" title="View / edit this agent's profile" style="background:#fff;color:#334155;border:1px solid #94a3b8;border-radius:14px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;margin-left:4px;">👤 Profile</button>
             </td>
           </tr>`;
         }).join('');
@@ -6463,6 +6393,10 @@ window._tsSdResult = null;      // response.selfDrive of the quote on screen, va
 
 function _sdEsc_(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function _sdTypeLabel_(t) { const r = TS_SD_TYPES_MAIN.concat(TS_SD_TYPES_MORE).find(x => x[0] === t); return r ? r[1] : String(t || '').replace(/_/g, ' '); }
+/** C5 (CARD_29OCT_yash, owner 5 Nov D-05NOV-MASTER, #218 option C): one car per type for the launch, so the quote names the type, never
+ *  the exact model of the Europcar card: "Europcar Small SUV or similar". Type = the segment's own, else the quote's; none = "car".
+ *  MINIBUS (an engine type the picker does not offer) gets its label here, not in TS_SD_TYPES_MORE, so the picker stays as it is. */
+function tsSdCarLabel_(sg, sd) { const t = (sg && sg.type) || (sd && sd.carType); return 'Europcar ' + (t ? ({ MINIBUS: 'Minibus' })[t] || _sdTypeLabel_(t) : 'car') + ' or similar'; }
 // Owner ruling 27 Oct (#168/#183): car size by travellers 1–2 Small SUV · 3–4 Big SUV · 5–7 Van · 8 or more = no self-drive (send the
 // trip to a consultant). The page follows this table even while the engine's own suggestion (SelfDrive.gs _sdSuggestType_) is older.
 const TS_SD_MAX_PAX = 7;
@@ -6572,6 +6506,15 @@ function tsSdReset_() {
     try { tsRenderSelfDrive_(); } catch (e) { /* the tables are re-rendered by startNewQuote */ }
 }
 
+/** C3 (CARD_29OCT_yash, 4 Nov): the engine's CITY_ONLY notice when the quote on screen asked for a car and the engine quoted none;
+ *  '' otherwise (no car asked, a car quoted, or not built yet). Same text as the notice under section 03. */
+function tsSdNoCarNote_() {
+    const sd = window._tsSdResult;
+    if (!sd || !window._tsSdBuiltParams || (sd.segments || []).length) return '';
+    const f = (sd.fallbacks || []).find(x => x && x.reason === 'CITY_ONLY');
+    return f ? (f.fromCity && f.toCity ? f.fromCity + ' → ' + f.toCity + ': ' : '') + (f.text || '') : '';
+}
+
 function tsSdSyncToggle_() {
     const t = document.getElementById('selfDriveToggle');
     const many = !tsSdWanted && _sdTooMany_();
@@ -6580,6 +6523,8 @@ function tsSdSyncToggle_() {
     if (many) { if (sumEl) sumEl.innerHTML = `<span style="color:#92400e;font-weight:600;">${_sdEsc_(TS_SD_TOO_MANY)}</span>`; return; }
     const sum = document.getElementById('selfDriveSummary');
     const own = tsSdWanted && tsSdWanted.byArea ? Object.keys(tsSdWanted.byArea).sort().map(k => `<div>${_sdEsc_(_sdAreaLabel_(k))} car: <b>${_sdEsc_(_sdTypeLabel_(tsSdWanted.byArea[k]))}</b></div>`).join('') : '';
+    const noCar = tsSdWanted ? tsSdNoCarNote_() : '';   // C3: the engine quoted no car (CITY_ONLY) = no car model in the box
+    if (sum && noCar) { sum.innerHTML = `<div style="margin-top:2px;padding:6px 8px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;color:#92400e;">ⓘ ${_sdEsc_(noCar)}</div>`; return; }
     if (sum) sum.innerHTML = tsSdWanted
         ? `Car: <b>${_sdEsc_(_sdTypeLabel_(tsSdWanted.carType))}</b> · <a href="#" onclick="tsSdOpenPicker_();return false;" style="color:var(--terra);font-weight:700;">Change</a>${tsSdWanted.auto ? ' <span style="color:var(--ink4);">(on by default for New Zealand)</span>' : ''}${own}
            <label style="display:flex;align-items:center;gap:4px;margin-top:4px;cursor:pointer;"><input type="checkbox" id="selfDriveLate" ${tsSdWanted.late ? 'checked' : ''} onchange="tsSdSetLate_(this.checked)" style="accent-color:var(--terra);">Late-night arrival — no car on the arrival day (taxi to the hotel, car next morning in the city)</label>`
@@ -6751,7 +6696,7 @@ function tsSdCarRows_(sd) {
                 <td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);">${place(sg.pickupPlace, sg.fromCity, sg.pickupPoint)}</td>
                 <td class="p-2 border" style="font-size:13px;font-weight:700;color:var(--ink);">${place(sg.dropPlace, sg.toCity, sg.dropPoint)}</td>
                 <td class="p-2 border" style="font-size:12px;color:var(--ink3);">
-                    <div style="font-weight:700;color:var(--ink);">🚗 ${_sdEsc_(c.model || _sdTypeLabel_(sg.type))}${c.seats ? ` · ${_sdEsc_(c.seats)} seats` : ''} · ${days}</div>
+                    <div style="font-weight:700;color:var(--ink);">🚗 ${_sdEsc_(tsSdCarLabel_(sg, sd))}${c.seats ? ` · ${_sdEsc_(c.seats)} seats` : ''} · ${days}</div>
                     ${parts ? `<div class="price-col no-print" style="font-size:11px;margin-top:2px;">${parts}</div>` : ''}${tripWarn ? `<div style="font-size:11px;margin-top:2px;">${tripWarn}</div>` : ''}
                 </td>
                 <td class="price-col no-print p-2 border" style="font-weight:700;color:var(--ink);">
@@ -6781,6 +6726,7 @@ function tsSdTermsHtml_(sd) {
 
 /** Draw self-drive: car rows in the 03 table + its title, crossings/fallbacks under the table, car terms at the top of 05. */
 function tsRenderSelfDrive_() {
+    try { tsSdSyncToggle_(); } catch (e) { /* C3: the self-drive box shows what the quote on screen was built with */ }
     const box = document.getElementById('selfDriveBlock');
     const tBody = document.getElementById('transferTableBody');
     const title = _sdSectionTitle_();
@@ -7003,6 +6949,18 @@ function _nzIsland_(c) { const k = _nzN_(c); return TS_NZ_NORTH.has(k) ? 'N' : T
 /** true when the leg crosses between the NZ North and South Islands (= needs a flight). */
 function tsNzNeedsFlight_(fromCity, toCity) { const a = _nzIsland_(fromCity), b = _nzIsland_(toCity); return !!(a && b && a !== b); }
 
+/** C2 (CARD_29OCT_yash, 4 Nov): true when an unpriced leg is a flight: a NZ North <-> South crossing, or a leg the engine flagged
+ *  "flight_price_manually: A → B — flight, …" on this build (its own travel data, the owner's Rome2Rio file). A reopened quote has no
+ *  engine flags, so there the leg keeps the general wording. */
+function tsLegIsFlight_(fromCity, toCity) {
+    if (tsNzNeedsFlight_(fromCity, toCity)) return true;
+    const f = _tsLegNorm_(fromCity), t = _tsLegNorm_(toCity);
+    return (window._tsEngineFlags || []).some(function (x) {
+        const m = /^flight_price_manually:\s*(.+?)\s*→\s*(.+?)\s*—/.exec(String(x));
+        return !!(m && _tsLegNorm_(m[1]) === f && _tsLegNorm_(m[2]) === t);
+    });
+}
+
 /** The day-wise itinerary block for an unpriced inter-island leg ('' when the leg is not one). */
 function tsNzFlightLeg_(fromCity, toCity, date) {
     if (!tsNzNeedsFlight_(fromCity, toCity)) return '';
@@ -7060,6 +7018,41 @@ function displayTourName(tourName, swissPassEnabled) {
     return tourName;
 }
 
+// ── D9 (owner 17 Nov; contract = lane B d9-swisspass-backend-20261117 / 0448bf3) ─────────────────────────────────────────
+/** Real sightseeing days for the Swiss pass: distinct (city block, assignedDay) pairs that hold a tour, Swiss cities only. */
+function tsSwissSightDays_(plan, isSwiss) {
+    const seen = {};
+    (Array.isArray(plan) ? plan : []).forEach(b => {
+        if (!b || !isSwiss(b.city) || !Array.isArray(b.sights)) return;
+        b.sights.forEach(s => { if (s && s.info) seen[(b.id != null ? b.id : b.city) + ':' + (s.assignedDay != null ? s.assignedDay : '?')] = 1; });
+    });
+    return Object.keys(seen).length;
+}
+/** '&sightseeingDays=N' for N >= 1, else '' (the server then assumes nights-1). */
+function tsSwissDaysParam_(n) { n = Math.floor(Number(n) || 0); return n >= 1 ? '&sightseeingDays=' + n : ''; }
+/** F2: a stay longer than the longest pass (15 days). No price, no saving claim; the pass can still be added. */
+function tsSwissManualHtml_() {
+    return '<div class="font-bold text-amber-800">Swiss Pass: price manually</div>'
+         + '<div class="mt-1 text-[10px] text-slate-600">This stay is longer than the longest standard pass (15 days), so there is no standard price. '
+         + 'You can still add the pass and enter its price yourself; the train legs stay at their individual prices until you do.</div>';
+}
+/** Daily local travel (ticket side, an ESTIMATE, panel only, never a quote line or PDF field) + child pass info. '' when the server sends neither. */
+function tsSwissExtrasHtml_(d, fmtInr) {
+    const esc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    let h = '';
+    const lt = Number(d && d.local_travel_total);
+    if (isFinite(lt) && lt > 0) {
+        h += '<div class="mt-1 text-[9px] text-slate-600 border-t border-amber-100 pt-1"><span class="font-bold text-amber-800">Daily local travel (estimate):</span> '
+           + fmtInr(lt) + (d.local_travel_label ? ' — ' + esc(d.local_travel_label) : '') + ' · counted on the ticket side only, not shown to the client</div>';
+    }
+    const c2 = Number(d && d.pass_price_per_child_2nd), c1 = Number(d && d.pass_price_per_child_1st);
+    if ((isFinite(c2) && c2 > 0) || (isFinite(c1) && c1 > 0)) {
+        h += '<div class="mt-1 text-[9px] text-slate-500">Child pass (info only): ' + [isFinite(c2) && c2 > 0 ? '2nd ' + fmtInr(c2) : '', isFinite(c1) && c1 > 0 ? '1st ' + fmtInr(c1) : ''].filter(Boolean).join(' · ')
+           + ' — children still travel free in the totals</div>';
+    }
+    return h;
+}
+
 async function fetchSwissPassOptions() {
     const swissCities  = selectedRoute.filter(r => {
         const c = String(r.city || '').toLowerCase().trim();
@@ -7095,7 +7088,8 @@ async function fetchSwissPassOptions() {
                   + `&adults=${adults}`
                   + `&children=${children}`
                   + `&passClass=${getSwissPassClass()}`
-                  + `&tours=${encodeURIComponent(JSON.stringify(selectedTours))}`;
+                  + `&tours=${encodeURIComponent(JSON.stringify(selectedTours))}`
+                  + tsSwissDaysParam_(tsSwissSightDays_(currentPlan, isSwissCityFE));
         const res  = await fetch(url);
         const rawText = await res.text();
 
@@ -7108,6 +7102,9 @@ async function fetchSwissPassOptions() {
             detailsEl.innerHTML = `<span class="text-red-500">Bad response (not JSON). API URL may be stale. Snippet: <code>${snippet}…</code></span>`;
             return;
         }
+
+        // D9 F2: longer than 15 days -> "price manually" (never "not eligible", never a made-up price, the pass is not blocked)
+        if (data && data.price_manually === true) { window.swissPassData = data; detailsEl.innerHTML = tsSwissManualHtml_(); return; }
 
         // v3 has no "eligible" field — error case is missing pass_duration
         if (!data || !data.pass_duration) {
@@ -7198,6 +7195,7 @@ async function fetchSwissPassOptions() {
             <div class="mt-1 text-[9px] text-slate-500 border-t border-amber-100 pt-1">
               <span class="font-bold text-amber-800">Train legs (individual prices):</span><br>${legs || '<i>none</i>'}
             </div>
+            ${tsSwissExtrasHtml_(data, fmtInr)}
             ${tourRows}
             <div class="mt-1">${savingLabel}</div>
             ${childPolicy}
@@ -7215,7 +7213,14 @@ function isSwissCityFE(city) {
 function applySwissPassToQuote(enabled, passData) {
     if (typeof selectedIntercity === 'undefined' || !Array.isArray(selectedIntercity)) return;
 
-    if (enabled && passData && passData.pass_duration) {
+    if (enabled && passData && passData.price_manually === true) {
+        // D9 F2: no standard price. Add ONE manual pass row at 0 for the rep to price; do NOT zero the Swiss train legs or the tour prices
+        // (no pass price is included, so nothing may become free). The pass is never blocked.
+        if (!selectedIntercity.find(ic => ic._isSwissPassRow)) {
+            selectedIntercity.push({ legId: 'swiss-pass-line', date: '', mode: 'Swiss Pass (price manually)', fromTo: 'Swiss Travel Pass — price manually',
+                                     notes: 'Longer than 15 days: no standard price, enter it by hand', price: 0, isManual: true, _isSwissPassRow: true, _priceManually: true });
+        }
+    } else if (enabled && passData && passData.pass_duration) {
         // 1. Zero out Swiss-to-Swiss train legs in selectedIntercity
         selectedIntercity.forEach(ic => {
             const m = String(ic.legId || '').match(/^ic-(.+?)-(.+)$/);
@@ -8385,7 +8390,7 @@ function renderTables() {
             ? `<div style="font-size:8px;font-weight:bold;color:#c8990a;margin-top:1px;line-height:1.2;">${renderStars(_h.starRating)}</div>`
             : '';
         const roomLine  = _h.roomType || _h.type || '';
-        const mealsLine = _h.meals || '';
+        const mealsLine = tsHotelMeal_(_h) || 'Meal plan to be confirmed';   // round 3: a blank meal is never shown blank (display only, never written back)
 
         hHtml += `
         <tr class="border-b">
@@ -8462,9 +8467,9 @@ function renderTables() {
                 } else {
                     bottomLines += `<div class="train-connector ts-missing-leg" style="margin-top:4px;">
                     <span style="font-size:15px;">⚠️</span>
-                    <span style="font-size:12px;font-weight:700;color:#B42318;">${item.city} → ${_nextCity}: not included — price manually</span>
+                    <span style="font-size:12px;font-weight:700;color:#B42318;">${tsLegIsFlight_(item.city, _nextCity) ? 'Flight ' : ''}${item.city} → ${_nextCity}: not included — price manually</span>
                     <button type="button" onclick="tsPriceMissingLeg('${encodeURIComponent(item.city)}','${encodeURIComponent(_nextCity)}','${item.cout || ''}')"
-                        style="margin-left:6px;font-size:11px;font-weight:700;color:#fff;background:#B5532C;border:0;border-radius:4px;padding:2px 8px;cursor:pointer;">Price this leg</button>
+                        style="margin-left:6px;font-size:11px;font-weight:700;color:#fff;background:#B5532C;border:0;border-radius:4px;padding:2px 8px;cursor:pointer;">${tsLegIsFlight_(item.city, _nextCity) ? 'Price this flight' : 'Price this leg'}</button>
                 </div>`;
                 }
             }
@@ -8714,9 +8719,7 @@ function renderTables() {
                         class="pdf-input w-full outline-none font-bold resize-none overflow-hidden"
                         style="font-size:13px;border:none;background:transparent;color:var(--ink);">${ic.fromTo}</textarea>
                 </td>
-                <td class="p-2 border">${tsFlightDetail_(ic) ? `<div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:2px;">${tsFlightDetail_(ic)}</div>` : ''}${(!covered && tsTrainSwapOk_(ic, masterData.intercity))
-                    ? `<select onchange="tsSwapTrainClass_(${idx}, this.value)" title="Swap this train leg between 2nd and 1st class (price from the Trains table)" style="font-size:12px;border:1px solid var(--ink4);border-radius:4px;background:transparent;color:var(--ink);padding:1px 4px;"><option value="economy"${String(ic.classType||'economy')==='1st'?'':' selected'}>2nd Class</option><option value="1st"${String(ic.classType||'')==='1st'?' selected':''}>1st Class${(tsTrainFare_(ic, masterData.intercity)||{}).p1>0?'':' (price manually)'}</option></select>${ic._fc1Missing ? '<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:2px;">1st class fare not in table: price manually</div>' : ''}`
-                    : _clsMapped
+                <td class="p-2 border">${tsFlightDetail_(ic) ? `<div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:2px;">${tsFlightDetail_(ic)}</div>` : ''}${_clsMapped
                     ? `<span style="font-size:12px;color:var(--ink4);font-style:italic;">${_clsLabel}</span>`
                     : `<textarea rows="1" placeholder="Scheduled" onchange="editIntercity(${idx}, 'notes', this.value)"
                         class="pdf-input w-full outline-none resize-none overflow-hidden"
@@ -9195,7 +9198,7 @@ function tsMissingLegFlags_() {
     try {
         return tsMissingLegs_(currentPlan || [], (typeof selectedIntercity !== 'undefined' ? selectedIntercity : []))
             .filter(function (m) { return !(typeof tsSdDriveFor_ === 'function' && tsSdDriveFor_(m.from, m.to, m.date)); })   // SELF-DRIVE (#166): driven legs
-            .map(function (m) { return 'missing_leg: ' + ((typeof tsNzNeedsFlight_ === 'function' && tsNzNeedsFlight_(m.from, m.to)) ? 'flight ' : '') + m.from + ' → ' + m.to + ': not included — price manually'; });   // #188 item 4
+            .map(function (m) { return 'missing_leg: ' + ((typeof tsLegIsFlight_ === 'function' && tsLegIsFlight_(m.from, m.to)) ? 'flight ' : '') + m.from + ' → ' + m.to + ': not included — price manually'; });   // #188 item 4
     } catch (e) { return []; }
 }
 function _tsMergeLegFlags_(engineFlags) {
@@ -10249,46 +10252,6 @@ function applyIntercitySwap(legId, item) {
     renderTables();
 }
 
-// TRAIN-1ST-01 (#24/#29, owner overnight brief P1-7): an agent can swap a TRAIN leg between 2nd and 1st class. The 1st-class price is the Trains
-// table's own firstClassPrice for that From+To (bidirectional, first matching row = the engine's rule) - NEVER a multiplier. A route with no
-// 1st-class price in the table does not price 1st class at 0 and does not guess: the leg is flagged 'price manually' (price blank = PRICE MISSING
-// banner). Pure functions, no DOM, node-testable. Touches only price / classType / notes / _price2nd / _fc1Missing on the leg; the billing hash
-// functions are untouched.
-function tsTrainFare_(ic, master) {
-  var n = function (x) { return String(x == null ? '' : x).trim().toLowerCase(); };
-  var a = n(ic && ic.from), b = n(ic && ic.to);
-  if ((!a || !b) && ic && ic.fromTo) { var m = String(ic.fromTo).split(/\s+to\s+/i); if (m.length === 2) { a = n(m[0]); b = n(m[1]); } }
-  if (!a || !b) return null;
-  var rows = master || [];
-  for (var i = 0; i < rows.length; i++) {
-    var r = rows[i];
-    if ((n(r.from) === a && n(r.to) === b) || (n(r.from) === b && n(r.to) === a)) {
-      return { p2: Number(r.price) || 0, p1: Number(r.firstClassPrice) > 0 ? Number(r.firstClassPrice) : 0 };
-    }
-  }
-  return null;
-}
-function tsTrainSwapOk_(ic, master) {
-  return !!ic && String(ic.mode || 'train').trim().toLowerCase() === 'train' && !ic._isSwissPassRow && !!tsTrainFare_(ic, master);
-}
-// Returns { classType, price, notes, _price2nd, _fc1Missing } for the leg after the swap, or null if the leg cannot be swapped.
-function tsTrainClassChange_(ic, cls, master) {
-  var fare = tsTrainFare_(ic, master);
-  if (!fare || !(cls === '1st' || cls === 'economy')) return null;
-  var p2 = fare.p2 > 0 ? fare.p2 : (Number(ic._price2nd) > 0 ? Number(ic._price2nd) : (String(ic.classType || 'economy') === 'economy' ? Number(ic.price) || 0 : 0));
-  if (cls === 'economy') return { classType: 'economy', price: p2 > 0 ? p2 : null, notes: '', _price2nd: p2 || null, _fc1Missing: false };
-  if (fare.p1 > 0) return { classType: '1st', price: fare.p1, notes: '1st Class', _price2nd: p2 || null, _fc1Missing: false };
-  return { classType: '1st', price: null, notes: '1st Class - price manually', _price2nd: p2 || null, _fc1Missing: true };   // never 0, never a multiplier
-}
-function tsSwapTrainClass_(index, cls) {
-  var ic = selectedIntercity[index]; if (!ic) return;
-  var ch = tsTrainClassChange_(ic, cls, masterData.intercity);
-  if (!ch) return;
-  ic.classType = ch.classType; ic.price = ch.price; ic.notes = ch.notes; ic._price2nd = ch._price2nd; ic._fc1Missing = ch._fc1Missing; ic.isManual = true;
-  if (ch._fc1Missing && typeof showToast === 'function') showToast('1st class fare is not in the table for this route: price it manually', 'warning');
-  if (typeof renderTables === 'function') renderTables();
-  if (typeof calculateBudgetInvestment === 'function') calculateBudgetInvestment();
-}
 function editIntercity(index, field, value) {
     if (!selectedIntercity[index]) return;
     if (field === 'price') {
@@ -10321,6 +10284,29 @@ function tsCatList_(rows) {
   return Object.keys(by).sort().map(k => ({ key: k, label: Object.keys(by[k]).sort((a, b) => by[k][b] - by[k][a] || a.localeCompare(b))[0] }));
 }
 function tsEscAttr_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+// ── Hotel window round 3 (#254, owner 17 Nov) ──
+function tsStarNum_(rating) { return tsStarsText_(rating).length; }
+// "₹X cheaper" / "₹X more" / "Same price": neutral ink, no sign, no green (a cheaper hotel is not "good", a dearer one not "bad").
+// h.cost is the master per-room-night rate; currentCost is in the same basis (see openHotelSwap). Change = the table's Total Stay change.
+function tsHotelDiffText_(h, currentCost, nights, rooms) {
+  var nt = nights + (nights === 1 ? ' night' : ' nights'), rm = rooms || 1, ink = '#2c1810', mute = '#7a6458';
+  if (!currentCost) return '<b style="color:' + ink + '">₹' + Math.round(Number(h.cost) * nights * rm).toLocaleString('en-IN') + '</b><small style="color:' + mute + '"> · ' + nt + ' total</small>';
+  var diff = Math.round((Number(h.cost) - currentCost) * nights * rm);
+  var word = diff === 0 ? 'Same price' : '₹' + Math.abs(diff).toLocaleString('en-IN') + (diff < 0 ? ' cheaper' : ' more');
+  return '<b style="color:' + ink + '">' + word + '</b><small style="color:' + mute + '"> · ' + nt + '</small>';
+}
+// The "close to your current price" list: up to n hotels within +-20%, a MIX of cheaper ones and upgrades (an upgrade = costs the
+// same or more AND has the same or a higher star than the current hotel). Nearest to the current price first within each side,
+// 3 cheaper + 2 upgrades for n = 5, topping up from the other side when one side is short; shown cheapest first.
+function tsPickNearby_(rows, currentCost, currentStars, n) {
+  var lo = currentCost * 0.8, hi = currentCost * 1.2, want = n || 5;
+  var inBand = rows.filter(function (h) { var c = Number(h.cost); return c >= lo && c <= hi; });
+  var cheaper = inBand.filter(function (h) { return Number(h.cost) < currentCost; }).sort(function (a, b) { return Number(b.cost) - Number(a.cost); });
+  var ups = inBand.filter(function (h) { return Number(h.cost) >= currentCost && tsStarNum_(h.starRating) >= (currentStars || 0); }).sort(function (a, b) { return Number(a.cost) - Number(b.cost); });
+  var takeC = Math.min(cheaper.length, Math.ceil(want / 2)), takeU = Math.min(ups.length, want - takeC);
+  takeC = Math.min(cheaper.length, want - takeU);
+  return cheaper.slice(0, takeC).concat(ups.slice(0, takeU)).sort(function (a, b) { return Number(a.cost) - Number(b.cost); });
+}
 function openHotelSwap(routeId) {
     const item = currentPlan.find(p => p.id === routeId);
     const city = item.city;
@@ -10339,6 +10325,7 @@ function openHotelSwap(routeId) {
       window._currentHotelRooms = _rm;
       window._currentHotelKey   = tsHotelRowKey_(item.hotel || {}); }
     window._currentHotelName  = (item.hotel?.name || '').toLowerCase();
+    window._currentHotelStars = tsStarNum_(item.hotel?.starRating);   // round 3: upgrades = same or higher star
     window._currentHotelNights = _nights;
 
     document.getElementById('modalHeading').innerText = `Select Hotel: ${city} · ${_nights} night${_nights !== 1 ? 's' : ''}`;   // owner 16 Nov: city once, nights in the title
@@ -10418,13 +10405,7 @@ function applyHotelFilters(routeId, city) {
     const currentCost  = window._currentHotelCost  || 0;
     const nights       = window._currentHotelNights || 1;
 
-    function diffLabel(h) {
-        if (currentCost === 0) return `<b>₹${Math.round(Number(h.cost)*nights*(window._currentHotelRooms || 1)).toLocaleString('en-IN')}</b><small> · ${nights}N total</small>`;
-        const diff   = Math.round((Number(h.cost) - currentCost) * nights * (window._currentHotelRooms || 1));   // Batch 1 card 6: = the change in the table's Total Stay
-        const sign   = diff >= 0 ? '+' : '−';
-        const colour = diff > 0 ? '#b91c1c' : diff < 0 ? '#15803d' : '#64748b';
-        return `<b style="color:${colour}">${sign}₹${Math.abs(diff).toLocaleString('en-IN')}</b><small> · ${nights}N</small>`;
-    }
+    function diffLabel(h) { return tsHotelDiffText_(h, currentCost, nights, window._currentHotelRooms || 1); }   // round 3: neutral text, no sign / green
     const _catLabel = {}; tsCatList_(allCityHotels).forEach(c => { _catLabel[c.key] = c.label; });
 
     // owner 16 Nov: one hotel = 2 single lines (name + stars / category + room type + price difference); meal label hidden until the data exists
@@ -10458,9 +10439,7 @@ function applyHotelFilters(routeId, city) {
     if (filtered.length === 0) {
         html = `<div style="padding:32px;text-align:center;font-size:11px;color:#7a6458;font-style:italic;">No hotels match your filters.</div>`;
     } else if (currentCost > 0) {
-        const low       = currentCost * 0.80;
-        const high      = currentCost * 1.20;
-        const bestMatch = filtered.filter(h => Number(h.cost) >= low && Number(h.cost) <= high).slice(0, 3);
+        const bestMatch = tsPickNearby_(filtered, currentCost, window._currentHotelStars || 0, 5);   // round 3: 5 hotels, cheaper AND upgrades
         const rest      = filtered.filter(h => !bestMatch.includes(h));
         if (bestMatch.length > 0) {
             html += `<div style="font-size:9px;font-weight:700;color:#5a7a5c;text-transform:uppercase;padding:0 4px;margin-bottom:3px;">Within ±20% of current price</div>`;
@@ -11685,7 +11664,6 @@ async function _processBillableActionInner(actionType, deliverFn) {
         let result;
         try { result = await saveRes.json(); } catch(e) { result = { success: false, message: await saveRes.text() }; }
         if (!result.success) {
-            if (tsShowLimit_(result)) return;   // FREE FOREVER: today's 15 reached -> calm message, the quote stays on screen
             console.error('[processBillableAction] ABORT: save blocked —', result.message);
             showToast('Save blocked: ' + (result.message || 'unknown'), 'error');
             return;
@@ -11753,7 +11731,6 @@ async function _deliverAuthorized(actionType, quoteId, paxName, deliverFn) {
     }
     if (typeof auth.newBalance === 'number') { walletBalance = auth.newBalance; updateWalletDisplay(); }
     if (!auth.allowed) {
-        if (tsShowLimit_(auth)) return;   // FREE FOREVER: today's 15 PDFs reached -> calm message, nothing lost
         showToast(auth.message || 'Not delivered — no charge.', 'error');
         return;
     }
@@ -12037,7 +12014,6 @@ async function sendToWhatsApp(btnEl) {
         if (typeof showToast === 'function') showToast('Queued for WhatsApp. Delivery status will show next to the WhatsApp button.', 'success');
         _waTrackDelivery(qid || '', legacyName, result.sendId || '');
       } else {
-        if (tsShowLimit_(result)) return;   // FREE FOREVER: today's limit reached -> calm message
         if (typeof showToast === 'function') showToast((result && result.error) || 'WhatsApp send failed', 'error');
       }
     });
@@ -12222,18 +12198,8 @@ window._lastQuoteId = null;
 // v19 (2026-05-27) — shared capture used by BOTH save sites (_autoSaveTick
 // and processBillableAction). Single source of truth so neither relies on
 // the other as a safety net. Returns the captured quoteId for caller use.
-// L8 round 2 (packet P3 2b): the server refuses the 16th row CREATION of the IST day, silent autosave included (limit:true, silent:true). The page then shows the
-// polite message ONCE, stops the periodic autosave for THAT name (flag in memory only: a reload starts clean), keeps the quote on screen and editable, and resumes
-// after any successful save of it or when the IST day changes. A forced / manual save always still tries.
-function tsIstDayKey_() { return new Date(Date.now() + 19800000).toISOString().slice(0, 10); }   // IST = UTC+5:30, no locale dependence
-function tsAutoLimitStopped_(name) {
-  const f = window._tsAutoLimit; if (!f) return false;
-  if (f.day !== tsIstDayKey_()) { window._tsAutoLimit = null; return false; }   // a new IST day: the limit has reset
-  return !!(f.names && f.names[name]);   // per name: switching between quotes does not forget a stop
-}
 function _captureSavedQuoteId(result) {
   if (result && result.quoteId) {
-    window._tsAutoLimit = null;   // any successful save (manual, forced or auto) lifts the autosave stop
     window._lastQuoteId = result.quoteId;
     return result.quoteId;
   }
@@ -12297,7 +12263,6 @@ async function _autoSaveTick(force) {
     var agent = window.currentUsername || (typeof _resolveAgentName === 'function' ? _resolveAgentName() : '') || 'admin';
     if (!payload) { _autoSaveInFlight = false; console.warn('[autoSaveTick] no payload — _buildCurrentPayload returned null'); return; }
     console.log('[autoSaveTick] resolved agent=', JSON.stringify(agent));
-    if (!force && tsAutoLimitStopped_(saveName)) { console.log('[autoSaveTick] stopped: the daily limit was reached for this quote name'); return; }   // L8: no request per tick
     console.log('[autoSaveTick] POSTing saveItinerary as', JSON.stringify({paxName: saveName, savedBy: agent, payload_keys: Object.keys(payload||{})}));
     var res = await fetch(API_URL, {
       method: 'POST',
@@ -12308,12 +12273,6 @@ async function _autoSaveTick(force) {
     var result;
     try { result = JSON.parse(rawText); }
     catch (parseErr) { result = { success: false, message: 'Non-JSON response: ' + rawText.slice(0, 200) }; }
-    if (result && result.limit === true) {   // FREE FOREVER (P3 2b): the 16th creation of the IST day: NOT a failure
-      const _day = tsIstDayKey_(), _f = (window._tsAutoLimit && window._tsAutoLimit.day === _day) ? window._tsAutoLimit : { day: _day, names: {} };
-      _f.names[saveName] = true; window._tsAutoLimit = _f;
-      tsShowLimit_(result);   // calm toast; later periodic ticks send nothing, so it shows once. Dirty stays true; the quote on screen is never touched
-      return;
-    }
     if (result && result.success) {
       _autoSaveDirty = false;
       _autoSaveFailCount = 0;
@@ -12761,7 +12720,7 @@ async function downloadExcel() {
       missing('paying', 'the wallet: ' + why(src.wallet, 'getWalletSummary'), 'Agents with at least one wallet charge in the week.', 'down');
     } else {
       var ww = function (w, t) { return (((src.wallet.weeks || {})[iso(w[0])] || {})[t]) || { n: 0, amount: 0 }; };
-      var wrows = ['DEBIT', 'CREDIT'].map(function (t) { var x = ww(WEEK, t); return [t === 'DEBIT' ? 'DEBIT (quote fees)' : 'CREDIT (top-ups)', x.n, Math.round(x.amount)]; });
+      var wrows = ['DEBIT', 'CREDIT'].map(function (t) { var x = ww(WEEK, t); return [t === 'DEBIT' ? 'DEBIT (quote fees · history only)' : 'CREDIT (top-ups · history only)', x.n, Math.round(x.amount)]; });
       put('revenue', Math.round(ww(WEEK, 'DEBIT').amount), Math.round(ww(PREV, 'DEBIT').amount),
         'Sum of wallet DEBIT rows dated in the week = the per-quote charges. Top-ups (CREDIT) are prepaid money, listed but not counted.', ['Type', 'Rows', '₹ amount'], wrows, WN);
       put('paying', ww(WEEK, 'DEBIT').payers || 0, ww(PREV, 'DEBIT').payers || 0,
@@ -12842,7 +12801,7 @@ const a11y = (key, label) => `data-c6="${key}" data-title="${esc(label)}"`;
 // a row with a number; the explanation lives in the click panel, not on the card
 function row(key, label, good) {
   const m = M[key]; if (!m) throw new Error('no metric ' + key); used.add(key);
-  if (m.missing) return `<div class="mrow wait" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="pend ${m.state}">${m.state === 'down' ? 'couldn’t load' : 'data coming'}</span></div>`;
+  if (m.missing) return `<div class="mrow wait" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="pend ${m.state}">${m.state === 'down' ? 'data coming (read failed)' : 'data coming'}</span></div>`;
   return `<div class="mrow" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="mv">${m.w}</span>${chg(m.w, m.p, good)}</div>`;
 }
 // numbers that come after Diwali: one quiet line per card, each still clickable
@@ -12870,7 +12829,7 @@ const KPI = [
 const kpis = KPI.map(([k, label, cls, icon, good, fmt, foot]) => {
   const m = M[k]; used.add(k);
   return `<article class="kpi ${cls}" ${a11y(k, label)}><div class="kpi-top"><span class="kpi-label">${esc(label)}</span><span class="kpi-icon" aria-hidden="true">${icon}</span></div>
-    <div class="kpi-value">${m.missing ? '<span class="kpi-na">' + (m.state === 'down' ? 'couldn’t load' : 'data coming') + '</span>' : fmt(m.w)}</div><div class="kpi-foot">${m.missing ? '' : chg(m.w, m.p, good, k === 'open_value' ? short : fmt)}<span>${esc(m.missing ? 'click for what it needs' : foot(m))}</span></div></article>`;
+    <div class="kpi-value">${m.missing ? '<span class="kpi-na">' + (m.state === 'down' ? 'data coming (read failed)' : 'data coming') + '</span>' : fmt(m.w)}</div><div class="kpi-foot">${m.missing ? '' : chg(m.w, m.p, good, k === 'open_value' ? short : fmt)}<span>${esc(m.missing ? 'click for what it needs' : foot(m))}</span></div></article>`;
 }).join('\n');
 
 // ---- the one chart: where this week's quotes landed against the client's budget
@@ -12910,11 +12869,11 @@ const body = `
       <div class="sec s-terra"><div class="sub">PDFs and revenue</div>
       ${row('bot_pdfs', 'PDFs made by the bot', 'up')}
       ${row('app_pdfs', 'PDFs made in the app', 'up')}
-      ${row('pdf_refused', 'PDFs refused by billing · history only', 'down')}
+      ${row('pdf_refused', 'PDFs refused by billing', 'down')}
       ${row('revenue', 'Revenue', 'up')}</div>
       <div class="sec s-sky"><div class="sub">Agents</div>
       ${row('agents_signed', 'Signed up', 'up')}
-      ${row('paying', 'Paying · history only', 'up')}
+      ${row('paying', 'Paying', 'up')}
       ${row('quiet_14d', 'Quiet for 14 days · call list', 'down')}</div>
       <div class="sec s-sage"><div class="sub">WhatsApp</div>
       <div class="funnel">${funnel}</div></div>
@@ -12939,7 +12898,7 @@ const body = `
       ${later([['cities_not_live', 'cities asked but not live']])}
     </section>
   </div>
-  <div class="foot"><span class="link" ${a11y('missing_all', 'Numbers the app cannot read yet')}>${nLater} numbers with data coming · see which</span><span class="sep">·</span>Live from the DEV backend (Quote_Log, Users, Agent_Wallet, PDF_DELIVERY_LOG, Saved_Itineraries), read-only${O.as_of.read ? ' · read at ' + esc(O.as_of.read) + ' IST' : ''}</div>
+  <div class="foot"><span class="link" ${a11y('missing_all', 'Numbers the app cannot read yet')}>${nLater} numbers need CC · see which</span><span class="sep">·</span>Live from the DEV backend (Quote_Log, Users, Agent_Wallet, PDF_DELIVERY_LOG, Saved_Itineraries), read-only${O.as_of.read ? ' · read at ' + esc(O.as_of.read) + ' IST' : ''}</div>
 </main>`;
 const css = `
 :root{--cream:#faf7f2;--cream2:#f3ede3;--cream3:#ede4d6;--sand:#d9cfc0;--ink:#1c1812;--ink2:#3d3629;--ink3:#6b5f4f;--ink4:#9e9080;--terra:#b85c38;--terra-bg:#fdf0ea;--terra-mid:#e07a50;--sage:#5a7a5c;--sage-bg:#eef4ee;--sky:#3b6ea5;--sky-bg:#edf3fb;--red:#c0392b;--red-bg:#fdecea;--serif:'Playfair Display',Georgia,serif;--sans:'Nunito Sans',system-ui,sans-serif;--shadow:0 3px 14px rgba(28,24,18,.05)}
@@ -13125,7 +13084,7 @@ data.m.missing_all = M.missing_all; data.lists.missing_all = O.lists.missing_all
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -13240,7 +13199,7 @@ function todo(pages, all) {
     
     // ---------- the two windows (= add_v2.js business(), live sources; bot numbers say "needs CC") ----------
     PG = 'b';
-    const ccTile = (key, label) => tile(key, M[key] && M[key].state === 'down' ? 'couldn’t load' : 'data coming', label, '', 'need');
+    const ccTile = (key, label) => tile(key, M[key] && M[key].state === 'down' ? 'data coming (read failed)' : 'data coming', label, '', 'need');
     const has = (k) => M[k] && !M[k].missing;
     const o = M.v2_outcome.v || {}, br = M.v2_book_rate.v || {};
     const ageMax = Math.max.apply(null, ages.map((r) => r[2]).concat([1]));
@@ -13255,7 +13214,7 @@ function todo(pages, all) {
         + tile('v2_booked_value', '₹' + inr(M.v2_booked_value.v), 'booked value', 'Grand total of Booked quotes', M.v2_booked_value.v ? 'ok' : 'bad')
       : ccTile('v2_outcome', 'quotes marked Booked or Lost') + ccTile('v2_book_rate', 'quote → booking') + ccTile('v2_booked_value', 'booked value');
     const moneyTiles = (has('v2_margin') ? tile('v2_margin', '₹' + inr(M.v2_margin.v), 'booked margin', 'markup on Booked quotes = money earned', M.v2_margin.v ? 'ok' : 'bad') : ccTile('v2_margin', 'booked margin'))
-      + (has('v2_fees') ? tile('v2_fees', wk(M.v2_fees.v, 1), 'quote fees charged · history only', 'wallet DEBIT rows (per-quote charges); free forever since 16 Nov', 'plain') + tile('v2_topups', wk(M.v2_topups.v, 1), 'wallet top-ups · history only', 'wallet CREDIT rows; free forever since 16 Nov', 'plain')
+      + (has('v2_fees') ? tile('v2_fees', wk(M.v2_fees.v, 1), 'quote fees charged · history only', 'wallet DEBIT rows (per-quote charges)', 'plain') + tile('v2_topups', wk(M.v2_topups.v, 1), 'wallet top-ups · history only', 'wallet CREDIT rows: prepaid, not earned', 'plain')
         : ccTile('v2_fees', 'quote fees charged · history only') + ccTile('v2_topups', 'wallet top-ups · history only'));
     const la = M.v2_src_last_agent.v || {}, ae = M.v2_src_agents_ever.v || {};
     const agentTiles = (has('v2_src_last_agent') ? tile('v2_src_last_agent', esc(la.date || '—'), 'last app quote by an agent', la.days == null ? 'no agent quote yet' : `${inr(la.days)} days ago`, la.days != null && la.days <= 14 ? 'ok' : 'bad') : ccTile('v2_src_last_agent', 'last app quote by an agent'))
@@ -13266,7 +13225,7 @@ function todo(pages, all) {
         `<div class="v2-tiles v2-t3">${outcomeTiles}</div><p class="v2-how"><b>Marker:</b> the consultant who owns the quote presses Booked or Lost on My Itineraries on the day the client pays the deposit or says no. <b>Open:</b> who marks and from which date (Sumit).</p>`,
         'Source: Quote_Log, all rows · Outcome, Grand Total') +
       card('v2-c-sage', '₹', 'Money earned, kept apart from wallet money', 'What TripStore keeps on booked trips, next to the wallet money agents are charged per quote or prepay.',
-        `<div class="v2-tiles v2-t3">${moneyTiles}</div><p class="v2-how">The first window's "Revenue" is called <b>Quote fees</b>: it counts wallet DEBIT rows (charges), not top-ups.</p>`,
+        `<div class="v2-tiles v2-t3">${moneyTiles}</div><p class="v2-how">The first window's "Revenue" is called <b>Quote fees</b>: it counts wallet DEBIT rows (charges), not top-ups. Under free-forever there are no new quote fees, so the fee and top-up cards show history only.</p>`,
         'Source: Quote_Log · Markup Amount, Outcome · Agent_Wallet · DEBIT and CREDIT rows') +
       card('v2-c-sky', '⏱', 'Speed', 'How fast a client gets a quote, and how long the quotes still waiting have been open.',
         `<div class="v2-tiles v2-t2">${ccTile('v2_wa_speed', 'WhatsApp: request → PDF')}${needTile('v2_app_speed', 'App: request → first quote')}</div>` +
@@ -13779,7 +13738,7 @@ function todo(pages, all) {
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -13870,7 +13829,7 @@ function todo(pages, all) {
     const page = (main) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank"><title>TripStore · Quote</title>${FONTS}<style>${mods.CSS}</style></head><body class="min-h-screen antialiased pb-16 selection:bg-terracotta selection:text-white">${main}</body></html>`;
     if (!X.Q || X.Q.missing || !X.W || !X.E) {
       const why = (X.Q && X.Q.missing) || 'the quote list did not answer';
-      return mods.inject(page(`<main class="max-w-[1680px] mx-auto px-3 sm:px-5 py-4"><div class="qq-card-crisp p-4"><h3 class="font-serif font-bold text-sm text-[#1F1C19]">Quote dashboard: couldn’t load</h3><p class="text-[11px] text-[#786F66]">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
+      return mods.inject(page(`<main class="max-w-[1680px] mx-auto px-3 sm:px-5 py-4"><div class="qq-card-crisp p-4"><h3 class="font-serif font-bold text-sm text-[#1F1C19]">Quote dashboard: not available</h3><p class="text-[11px] text-[#786F66]">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
     }
     const a = X.asOf || {}, Q = X.Q;
     const NOTE = 'Live from the DEV backend: all ' + mods.F.n(Q.quotes) + ' quotes' + (Q.quote_span ? ', ' + Q.quote_span[0] + ' – ' + Q.quote_span[1] : '') + (a.read ? ', read at ' + a.read + ' IST' : '') +
@@ -14295,7 +14254,7 @@ function todo(pages, all) {
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -14400,7 +14359,7 @@ function todo(pages, all) {
     const page = (main) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank"><title>TripStore · Data</title>${FONTS}<style>${mods.CSS}</style></head><body>${main}</body></html>`;
     if (!X.C || X.C.missing || !X.DD) {
       const why = (X.C && X.C.missing) || 'the catalogue did not answer';
-      return mods.inject(page(`<main><div class="business-panel"><h3>Data dashboard: couldn’t load</h3><p class="business-panel-intro">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
+      return mods.inject(page(`<main><div class="business-panel"><h3>Data dashboard: not available</h3><p class="business-panel-intro">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
     }
     const C = X.C, DD = X.DD, rd = DD.rate_dates || {}, a = X.asOf || {};
     const TAG = 'Live from the DEV backend' + (a.read ? ' · read at ' + a.read + ' IST' : '') + ' · rates refreshed this week: ' + mods.F.n(rd.in_week) + ' (last week ' + mods.F.n(rd.in_prev) +
@@ -14425,22 +14384,7 @@ const TS_BIZ_FONTS = "<link href=\"https://fonts.googleapis.com/css2?family=Play
 const TS_BIZ_CALLS = ['getDashboardQuotes', 'getAllAgents', 'getWalletSummary', 'getPdfLogSummary', 'getSavedQuoteStats'];
 let _tsBizAt = 0, _tsBizBusy = null, _tsBizSized = false;
 // phones: the frame tells its height (one number, postMessage); the tab then shows the whole page (desktop keeps the one-screen frame)
-const TS_BIZ_HIDE_WALLET = '<style>/* owner 18 Nov: wallet cards hidden (free forever); data kept, only the display is hidden */[data-c6="revenue"],[data-c6="paying"],[data-c6="v2_fees"],[data-c6="v2_topups"]{display:none!important}</style>';
-// DASH-CUT-01 (owner 18 Nov, item 5): the dashboard shows only what is REAL today. (a) DATE FLOOR: counting starts 18 Nov 2026 - the quote list is cut
-// page-side right after the read (rows with 'at' before the floor are not used); nothing is deleted or changed in the sheet, the old rows stay in
-// Quote_Log and in the dated backup copy. (b) PRUNE: after the page is drawn in its frame, every number that has no data ('data coming',
-// "couldn't load", 'needs ...', a dash) or is zero is hidden, and a card left with nothing is hidden. Display only: the numbers are still computed.
-const TS_BIZ_FLOOR = '2026-11-18';
-const TS_BIZ_PRUNE = '<script>(function(){var NO=/^\\s*(?:(?:₹|rs\\.?)\\s*)?0+(?:[.,]0+)?\\s*(?:%|₹)?\\s*$|^\\s*[—–-]\\s*$|n\\/a|data coming|couldn.t load|not available|needs\\b/i;' +
-  'function txt(e){return (e&&e.textContent||"").replace(/\\s+/g," ").trim()}' +
-  'function val(e){var v=e.querySelector(".mv,.kpi-value,.pend,.kpi-na,b,em.na");return v?txt(v):""}' +
-  'function hide(e){e.style.display="none";e.setAttribute("data-pruned","1")}' +
-  'function run(){var M=document.querySelectorAll(".mrow,.kpi,.v2-tile,.fstep,.hp");' +
-  'for(var i=0;i<M.length;i++){var e=M[i],v=val(e);if(e.querySelector(".pend,.kpi-na,em.na")||e.classList.contains("wait")||e.classList.contains("v2-need")||e.classList.contains("diwali")||NO.test(v))hide(e)}' +
-  'var L=document.querySelectorAll(".later,.lt,.foot,.diwali");for(var j=0;j<L.length;j++)if(/data coming|needs cc|numbers with data/i.test(txt(L[j])))hide(L[j]);' +
-  'var C=document.querySelectorAll("section,.card,.v2-card,.panel");for(var k=0;k<C.length;k++){var c=C[k];var all=c.querySelectorAll(".mrow,.kpi,.v2-tile,.fstep,.hp");if(!all.length)continue;var vis=0;for(var m=0;m<all.length;m++)if(all[m].getAttribute("data-pruned")!=="1")vis++;if(!vis&&!c.querySelector("table,canvas,svg,li"))hide(c)}}' +
-  'addEventListener("load",function(){try{run()}catch(e){}});setTimeout(function(){try{run()}catch(e){}},300)})()' + '<' + '/script>';
-const TS_BIZ_SIZE = TS_BIZ_HIDE_WALLET + TS_BIZ_PRUNE + '<script>(function(){function s(){parent.postMessage({c6h:document.documentElement.scrollHeight},"*")}addEventListener("load",s);addEventListener("resize",s);setTimeout(s,400)})()</scr' + 'ipt>';
+const TS_BIZ_SIZE = '<script>(function(){function s(){parent.postMessage({c6h:document.documentElement.scrollHeight},"*")}addEventListener("load",s);addEventListener("resize",s);setTimeout(s,400)})()</scr' + 'ipt>';
 function _tsBizSize_(e) {
     const fr = document.getElementById('businessFrame');
     if (!fr || e.source !== fr.contentWindow || !e.data || typeof e.data.c6h !== 'number' || !(e.data.c6h > 0)) return;
@@ -14500,7 +14444,6 @@ async function loadBusinessDashboard(force) {
     _tsBizBusy = (async () => {
         try {
             const [quotes, agents, wallet, pdf, saved] = await Promise.all(TS_BIZ_CALLS.map(_tsBizGet_));
-            if (quotes && Array.isArray(quotes.rows)) quotes.rows = quotes.rows.filter((r) => String((r && r.at) || '').slice(0, 10) >= TS_BIZ_FLOOR);   // DASH-CUT-01: count from 18 Nov, page-side only
             const names = {};
             if (Array.isArray(agents) && window.crypto && crypto.subtle) for (const a of agents) { const u = String((a && a.username) || '').trim(); if (u) names[await _tsBizHash_(u.toLowerCase())] = u; }
             const ist = new Date(Date.now() + 330 * 60000);
@@ -14553,7 +14496,7 @@ function switchAdminTab(tab) {
 function applyRoleVisibility(role) {
     const r = String(role || '').trim().toUpperCase();
     const VIS = {
-        ADMIN:        ['quickquote','itinerary','saved','quote','data','coverage','manager','agents','business'],   // owner 18 Nov: Wallet Admin tab hidden (free forever)
+        ADMIN:        ['quickquote','itinerary','saved','quote','data','coverage','manager','wallet','agents','business'],
         INTERNAL:     ['quickquote','itinerary','saved'],
         AGENT:        ['quickquote','itinerary','saved','profile'],
         MANAGER:      ['quickquote','itinerary','saved','quote','coverage','manager'],
@@ -15200,33 +15143,9 @@ function timeAgoD(isoStr) {
 // WALLET SYSTEM
 // ══════════════════════════════════════════════════════════════
 
-// ── FREE FOREVER (owner 17 Nov 02:35) ── no charge for agents; the cap (15 quotes + 15 PDFs per IST day) is enforced on the SERVER.
-// Wallet badge + top-up are hidden for AGENT / USER only (ADMIN and staff keep them; the wallet DATA is kept, nothing is deleted).
-var TS_FREE_FOREVER_HIDE_ROLES_ = { AGENT: 1, USER: 1 };
-var TS_LIMIT_FALLBACK_MSG_ = "You've reached today's fair-usage limit of 15 quotes. It resets at midnight \u2014 need more? WhatsApp us.";
-function tsWalletHiddenFor_(role) { return !!TS_FREE_FOREVER_HIDE_ROLES_[String(role || '').trim().toUpperCase()]; }
-// A polite limit refusal from the server: save = { success:false, limit:true, message }; delivery = { allowed:false, charge:0, message }. Returns the text to show, or '' when the reply is not a limit refusal.
-function tsLimitMessage_(res) {
-    if (!res) return '';
-    var m = String(res.message == null ? '' : res.message).trim();
-    // the save route says limit:true. The PDF / WhatsApp delivery route (authorizeDelivery) returns { allowed:false, charge:0, message } with no
-    // flag: recognise it by the backend's fixed wording (Billing.gs FF_MSG_PDF: "You've reached today's limit of ..."), and never when a charge happened.
-    var deliveryLimit = res.allowed === false && res.charged !== true && /^You've reached today's (?:fair-usage )?limit of /i.test(m);
-    if (res.limit !== true && !deliveryLimit) return '';
-    return m || TS_LIMIT_FALLBACK_MSG_;
-}
-// Shows the calm toast and returns true; the caller just returns: the quote stays on screen, no state is touched.
-function tsShowLimit_(res) {
-    var msg = tsLimitMessage_(res);
-    if (!msg) return false;
-    try { showToast(msg, 'info'); } catch (e) {}
-    return true;
-}
-
 async function loadWalletBalance() {
     const session = JSON.parse(localStorage.getItem('tripstore_session') || '{}');
     if (!session.username) return;
-    if (tsWalletHiddenFor_(session.role || window.currentRole)) return;   // FREE FOREVER: agents have no wallet to show
     try {
         const res = await fetch(`${API_URL}?action=getWalletBalance&agentId=${encodeURIComponent(session.username)}`);
         const data = await res.json();
@@ -15239,8 +15158,6 @@ function updateWalletDisplay() {
     const badge = document.getElementById('walletBadge');
     const display = document.getElementById('walletBalanceDisplay');
     if (!badge || !display) return;
-    var _role = window.currentRole; if (!_role) { try { _role = JSON.parse(localStorage.getItem('tripstore_session') || '{}').role; } catch (e) {} }
-    if (tsWalletHiddenFor_(_role)) { badge.style.display = 'none'; var _dd = document.getElementById('walletDropdown'); if (_dd) _dd.style.display = 'none'; return; }   // FREE FOREVER
     badge.style.display = 'flex';
     display.textContent = '₹' + walletBalance.toLocaleString('en-IN');
     display.style.color = walletBalance < 200 ? '#ef4444' : '#4ade80';
