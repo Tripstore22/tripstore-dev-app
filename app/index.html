@@ -503,9 +503,18 @@ html{height:100%;overflow:hidden;}body{height:100%;font-family:var(--sans);backg
 #savedListContent .mi-empty strong{display:block;margin-bottom:4px;color:var(--ink);font:700 18px var(--serif);}
 @media (max-width: 1320px){
   #tab-saved{padding:20px 20px 50px !important;}
-  #savedListContent .mi-card{grid-template-columns:minmax(180px,1.2fr) minmax(125px,.8fr) minmax(190px,1.1fr) minmax(215px,1.2fr);align-items:start;}
-  #savedListContent .mi-status-cell,#savedListContent .mi-actions{grid-row:2;}
-  #savedListContent .mi-actions{grid-column:4;}
+}
+/* MI-MEDIUM (19 Nov): 761–1320 px, every card block has its own place (Budget never falls under Agent, no empty column) */
+@media (min-width: 761px) and (max-width: 1320px){
+  #savedListContent .mi-card{grid-template-columns:minmax(150px,1.15fr) minmax(120px,.85fr) minmax(170px,1.2fr) minmax(130px,.75fr);gap:10px 16px;align-items:start;}
+  #savedListContent .mi-identity{grid-column:1;grid-row:1;}
+  #savedListContent .mi-agent-cell{grid-column:2;grid-row:1;}
+  #savedListContent .mi-traveler-cell{grid-column:2;grid-row:2;}
+  #savedListContent .mi-trip-cell{grid-column:3;grid-row:1 / span 2;}
+  #savedListContent .mi-budget{grid-column:2 / span 2;grid-row:3;}
+  #savedListContent .mi-budget-heading{padding-left:0;}
+  #savedListContent .mi-status-cell{grid-column:1;grid-row:2 / span 2;text-align:left;}
+  #savedListContent .mi-actions{grid-column:4;grid-row:1 / span 3;grid-template-columns:1fr;align-self:center;}
 }
 @media (max-width: 760px){
   #tab-saved{padding:18px 14px 44px !important;}
@@ -764,9 +773,31 @@ textarea.pdf-input{
 .tsw-diff small{font-size:10.5px;color:#7a6458;}
 /* round 3 phone fix (CC 17 Nov): "₹X cheaper · 3 nights" is longer than the old "−₹X · 3N"; at 390px 9 of 30 rows overflowed. Let the meta line wrap, price on its own line. */
 @media (max-width:480px){ .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-l2{flex-wrap:wrap;white-space:normal;row-gap:4px;} .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-room{flex:0 1 auto;max-width:100%;} }
+/* owner 20 Nov (D-20NOV-YASH-4, card E4): the FULL hotel name, never cut with "…" (a long name wraps), and the rows tighter again:
+   at least 10 hotels on a 1366x768 laptop, 11 on a phone. Round 3's wording, colours and the "within ±20%" group are unchanged. */
+.modal-box.ts-modal-hotel .hotel-swap-item.tsw-row{padding:6px 14px;}
+.modal-box.ts-modal-hotel #hotelListContainer > .tsw-row + :not(.tsw-row){margin-top:8px !important;}
+.modal-box.ts-modal-hotel .tsw-row .tsw-l1{display:block;white-space:normal;overflow:visible;}   /* a long name wraps; the stars follow it inline */
+.modal-box.ts-modal-hotel .tsw-row .tsw-stars{margin-left:6px;white-space:nowrap;}
+.modal-box.ts-modal-hotel .tsw-row .tsw-name{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;}
+@media (min-width:561px){ .modal-box.ts-modal-hotel #hotelListContainer .hotel-swap-item.tsw-row{grid-template-rows:auto 16px;} }
+/* phone: the second line stays ONE line (category · room type · meal · price); only the room type may shorten with "…" when the
+   line is full, the hotel name never. The title already says the nights, so the row drops its "· 3 nights". */
+@media screen and (max-width:560px){
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row{padding:3px 12px;}
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-l1{line-height:16px;}
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-name{font-size:13.5px;}
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-l2{flex-wrap:nowrap;white-space:nowrap;column-gap:6px;margin-top:1px;line-height:15px;}
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-cat,.modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-meal{line-height:14px;}
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-room{flex:1 1 auto;min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis;}
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-diff{margin-left:auto;flex-shrink:0;}
+  .modal-box.ts-modal-hotel .hotel-swap-item.tsw-row .tsw-diff small{display:none;}
+}
 #currentHotelBar.tsw-cur{padding:4px 16px !important;}
 #currentHotelBar.tsw-cur > div > div:first-child{display:none;}
 #currentHotelBar.tsw-cur > div:last-child > div{display:inline;margin-left:6px;}
+/* SWAP-MEDIUM (19 Nov): 561–980 px, the first filter row wraps (nothing squeezed on top of each other) */
+@media (min-width:561px) and (max-width:980px){ .tsw-r:first-child{flex-wrap:wrap;} .tsw-bar .tsw-search{flex:1 1 100%;max-width:none;} }
 @media (max-width:560px){
   .tsw-r:first-child{flex-wrap:wrap;} .tsw-bar .tsw-search{flex:1 1 100%;max-width:none;} .tsw-bar .tsw-count{margin-left:auto;padding:4px 9px;font-size:11px !important;} .tsw-price input{width:58px;} .tsw-price .tsw-lab{display:none;} .tsw-r{gap:4px 8px !important;}
   .tsw-bar{padding:6px 12px !important;gap:4px;} .tsw-bar input[type=text],.tsw-bar input[type=number]{height:28px;}
