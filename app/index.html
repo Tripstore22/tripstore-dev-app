@@ -6938,6 +6938,24 @@ function tsDedupUpgrades_(list) {
     return out;
 }
 
+// Owner rule of 2 Nov, confirmed 21 Nov: "Optional upgrades" shows at most 3 rows, at most 1 per city, and no "+X more".
+// The engine's order is kept; a city's first row wins; a row listed under two cities ("Brisbane / Gold Coast", after tsDedupUpgrades_)
+// takes both cities. Copies only: window._tsOptUpgrades keeps every row. Off-switch TS_UPGCAP_OFF = true: every priced row and "+N more", as before.
+const TS_UPGCAP_OFF = false;
+const TS_UPG_MAX = 3;
+function tsUpgradesShown_(list) {
+    if (TS_UPGCAP_OFF === true) return list || [];
+    const used = new Set(), out = [];
+    (list || []).forEach(u => {
+        if (out.length >= TS_UPG_MAX) return;
+        const cs = String((u && u.city) || '').split(' / ').map(c => c.trim().toLowerCase()).filter(Boolean);
+        if (cs.some(c => used.has(c))) return;
+        cs.forEach(c => used.add(c));
+        const row = Object.assign({}, u); delete row.more; out.push(row);
+    });
+    return out;
+}
+
 /** The block under the day-wise itinerary (created once, next to its table). */
 function tsRenderUpgrades_() {
     const tbody = document.getElementById('sightTableBody');
@@ -6952,9 +6970,10 @@ function tsRenderUpgrades_() {
         if (!(Number(u.more) > 0)) return;
         for (let i = list.length - 1; i >= 0; i--) if (list[i].city === u.city) { list[i] = Object.assign({}, list[i], { more: (Number(list[i].more) || 0) + Number(u.more) }); break; }
     });
-    if (!list.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+    const shown = tsUpgradesShown_(list);   // owner 2 Nov: max 3, 1 per city, no "+X more"
+    if (!shown.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
     const inr = n => Math.round(Number(n)).toLocaleString('en-IN');
-    const rows = list.map(u => `<div class="opt-upg-row" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:4px 0;border-top:1px solid var(--border2);font-size:12px;color:var(--ink2);">
+    const rows = shown.map(u => `<div class="opt-upg-row" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:4px 0;border-top:1px solid var(--border2);font-size:12px;color:var(--ink2);">
             <span><b>${_upEsc_(u.city)}</b> · ${_upEsc_(u.name)}${TS_UPG_KIND[u.kind] ? ` <span style="font-size:10px;color:var(--ink4);">(${_upEsc_(TS_UPG_KIND[u.kind])})</span>` : ''}${Number(u.more) > 0 ? ` <span style="font-size:10px;color:var(--ink4);">+${_upEsc_(Number(u.more))} more</span>` : ''}</span>
             <span style="white-space:nowrap;font-weight:700;color:var(--terra);">${_upPriced_(u) ? 'Optional upgrade — ₹' + inr(u.priceInr) : 'Optional upgrade — price manually'}</span></div>`).join('');
     box.innerHTML = `<div style="margin:10px 0;padding:10px 12px;border:1px dashed var(--border2);border-radius:8px;background:#fffdf8;">
