@@ -13043,7 +13043,7 @@ async function downloadExcel() {
       O.m.app_quotes.trips = [uniq(QW.w), uniq(QW.p)];
       O.m.app_quotes.f += ' Different trips = different Cities + Total Nights + Total PAX (the same trip saved again counts once).';
       var won = function (k) { return QW[k].filter(function (r) { return oc(r) === 'won'; }); };
-      put('won', won('w').length, won('p').length, 'Quote_Log rows logged in the week with Outcome = Won (shown as Booked).', QCOLS, won('w').map(qrow), QN);
+      put('won', won('w').length, won('p').length, 'Quote_Log rows logged in the week with Outcome = Won.', QCOLS, won('w').map(qrow), QN);
       var pend = function (k) { return QW[k].filter(function (r) { return oc(r) === 'pending'; }); };
       var sum = function (rows) { return Math.round(rows.reduce(function (s, r) { return s + gt(r); }, 0)); };
       put('open_value', sum(pend('w')), sum(pend('p')), 'Sum of Grand Total of the quotes logged in the week that are still Pending.', QCOLS, pend('w').slice().sort(function (a, b) { return gt(b) - gt(a); }).map(qrow), QN);
@@ -13146,7 +13146,7 @@ async function downloadExcel() {
       missing('paying', 'the wallet: ' + why(src.wallet, 'getWalletSummary'), 'Agents with at least one wallet charge in the week.', 'down');
     } else {
       var ww = function (w, t) { return (((src.wallet.weeks || {})[iso(w[0])] || {})[t]) || { n: 0, amount: 0 }; };
-      var wrows = ['DEBIT', 'CREDIT'].map(function (t) { var x = ww(WEEK, t); return [t === 'DEBIT' ? 'DEBIT (quote fees · history only)' : 'CREDIT (top-ups · history only)', x.n, Math.round(x.amount)]; });
+      var wrows = ['DEBIT', 'CREDIT'].map(function (t) { var x = ww(WEEK, t); return [t === 'DEBIT' ? 'DEBIT (quote fees)' : 'CREDIT (top-ups)', x.n, Math.round(x.amount)]; });
       put('revenue', Math.round(ww(WEEK, 'DEBIT').amount), Math.round(ww(PREV, 'DEBIT').amount),
         'Sum of wallet DEBIT rows dated in the week = the per-quote charges. Top-ups (CREDIT) are prepaid money, listed but not counted.', ['Type', 'Rows', '₹ amount'], wrows, WN);
       put('paying', ww(WEEK, 'DEBIT').payers || 0, ww(PREV, 'DEBIT').payers || 0,
@@ -13227,7 +13227,7 @@ const a11y = (key, label) => `data-c6="${key}" data-title="${esc(label)}"`;
 // a row with a number; the explanation lives in the click panel, not on the card
 function row(key, label, good) {
   const m = M[key]; if (!m) throw new Error('no metric ' + key); used.add(key);
-  if (m.missing) return `<div class="mrow wait" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="pend ${m.state}">${m.state === 'down' ? 'data coming (read failed)' : 'data coming'}</span></div>`;
+  if (m.missing) return `<div class="mrow wait" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="pend ${m.state}">${m.state === 'down' ? 'couldn’t load' : 'data coming'}</span></div>`;
   return `<div class="mrow" ${a11y(key, label)}><span class="ml">${esc(label)}</span><span class="mv">${m.w}</span>${chg(m.w, m.p, good)}</div>`;
 }
 // numbers that come after Diwali: one quiet line per card, each still clickable
@@ -13247,7 +13247,7 @@ const group = (title, items0, cls) => { const items = items0.map(([k, l]) => [k,
 const KPI = [
   ['app_quotes', 'App quotes', '', '↗', 'up', v => v, m => `${m.trips[0]} different trips`],
   ['wa_quotes', 'WhatsApp bot quotes', 'blue', '◌', 'up', v => v, () => 'bot log: data coming'],
-  ['won', 'Booked quotes', 'green', '✓', 'up', v => v, () => 'marked Booked (stored as Won in Quote_Log)'],
+  ['won', 'Won quotes', 'green', '✓', 'up', v => v, () => 'marked Won in Quote_Log'],
   ['open_value', 'Open quote value', 'amber', '₹', null, inr, m => 'still Pending'],
   ['active_7d', 'Active agencies', 'teal', '◎', 'up', v => v, () => 'agents, staff left out'],
   ['pending_7d', 'Pending >7 days', 'red', '!', 'down', v => v, () => 'saved 8–30 days ago'],
@@ -13255,7 +13255,7 @@ const KPI = [
 const kpis = KPI.map(([k, label, cls, icon, good, fmt, foot]) => {
   const m = M[k]; used.add(k);
   return `<article class="kpi ${cls}" ${a11y(k, label)}><div class="kpi-top"><span class="kpi-label">${esc(label)}</span><span class="kpi-icon" aria-hidden="true">${icon}</span></div>
-    <div class="kpi-value">${m.missing ? '<span class="kpi-na">' + (m.state === 'down' ? 'data coming (read failed)' : 'data coming') + '</span>' : fmt(m.w)}</div><div class="kpi-foot">${m.missing ? '' : chg(m.w, m.p, good, k === 'open_value' ? short : fmt)}<span>${esc(m.missing ? 'click for what it needs' : foot(m))}</span></div></article>`;
+    <div class="kpi-value">${m.missing ? '<span class="kpi-na">' + (m.state === 'down' ? 'couldn’t load' : 'data coming') + '</span>' : fmt(m.w)}</div><div class="kpi-foot">${m.missing ? '' : chg(m.w, m.p, good, k === 'open_value' ? short : fmt)}<span>${esc(m.missing ? 'click for what it needs' : foot(m))}</span></div></article>`;
 }).join('\n');
 
 // ---- the one chart: where this week's quotes landed against the client's budget
@@ -13295,11 +13295,11 @@ const body = `
       <div class="sec s-terra"><div class="sub">PDFs and revenue</div>
       ${row('bot_pdfs', 'PDFs made by the bot', 'up')}
       ${row('app_pdfs', 'PDFs made in the app', 'up')}
-      ${row('pdf_refused', 'PDFs refused by billing', 'down')}
+      ${row('pdf_refused', 'PDFs refused by billing · history only', 'down')}
       ${row('revenue', 'Revenue', 'up')}</div>
       <div class="sec s-sky"><div class="sub">Agents</div>
       ${row('agents_signed', 'Signed up', 'up')}
-      ${row('paying', 'Paying', 'up')}
+      ${row('paying', 'Paying · history only', 'up')}
       ${row('quiet_14d', 'Quiet for 14 days · call list', 'down')}</div>
       <div class="sec s-sage"><div class="sub">WhatsApp</div>
       <div class="funnel">${funnel}</div></div>
@@ -13510,7 +13510,7 @@ data.m.missing_all = M.missing_all; data.lists.missing_all = O.lists.missing_all
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -13570,11 +13570,11 @@ function todo(pages, all) {
     let ages = [];
     if (qok) {
       const won = q.filter((r) => oc(r) === 'won'), lost = q.filter((r) => oc(r) === 'lost'), pend = q.filter((r) => oc(r) === 'pending');
-      put('v2_outcome', { won: won.length, lost: lost.length, pending: pend.length, all: q.length }, 'Quote_Log rows by Outcome (Booked / Lost / Pending), all dates. The list shows the quotes marked Booked or Lost.', QN, QCOLS.concat(['Outcome']), won.concat(lost).map((r) => qrow(r).concat([r.out])));
+      put('v2_outcome', { won: won.length, lost: lost.length, pending: pend.length, all: q.length }, 'Quote_Log rows by Outcome (Won / Lost / Pending), all dates. The list shows the quotes marked Won or Lost.', QN, QCOLS.concat(['Outcome']), won.concat(lost).map((r) => qrow(r).concat([r.out])));
       const d90 = q.filter((r) => dayOf(r.t) > today - 90 * DAY);
-      put('v2_book_rate', { won: d90.filter((r) => oc(r) === 'won').length, of: d90.length }, 'Booked ÷ quotes logged in the last 90 days. Stays 0% until consultants mark Booked.', QN);
-      put('v2_booked_value', Math.round(won.reduce((s, r) => s + (num(r.gt) || 0), 0)), 'Sum of Grand Total of the quotes marked Booked (all dates).', QN, QCOLS, won.map(qrow));
-      put('v2_margin', Math.round(won.reduce((s, r) => s + (num(r.mka) || 0), 0)), 'Sum of Markup Amount of the quotes marked Booked = what TripStore keeps on booked trips. Never the wallet money.', QN, QCOLS.concat(['Markup ₹']), won.map((r) => qrow(r).concat([Math.round(num(r.mka) || 0)])));
+      put('v2_book_rate', { won: d90.filter((r) => oc(r) === 'won').length, of: d90.length }, 'Won ÷ quotes logged in the last 90 days. Stays 0% until consultants mark Won.', QN);
+      put('v2_booked_value', Math.round(won.reduce((s, r) => s + (num(r.gt) || 0), 0)), 'Sum of Grand Total of the quotes marked Won (all dates).', QN, QCOLS, won.map(qrow));
+      put('v2_margin', Math.round(won.reduce((s, r) => s + (num(r.mka) || 0), 0)), 'Sum of Markup Amount of the quotes marked Won = what TripStore keeps on booked trips. Never the wallet money.', QN, QCOLS.concat(['Markup ₹']), won.map((r) => qrow(r).concat([Math.round(num(r.mka) || 0)])));
       const age = (r) => Math.round((today - dayOf(r.t)) / DAY);
       ages = [['0–7 days', 0, 7], ['8–30 days', 8, 30], ['31–90 days', 31, 90], ['over 90 days', 91, 1e6]].map(([lab, a, b]) => {
         const k = 'v2_pend_' + lab.replace('–', 'to').replace(/\W/g, '').toLowerCase(), rows = pend.filter((r) => a <= age(r) && age(r) <= b).sort((x, y) => x.t - y.t);
@@ -13625,7 +13625,7 @@ function todo(pages, all) {
     
     // ---------- the two windows (= add_v2.js business(), live sources; bot numbers say "needs CC") ----------
     PG = 'b';
-    const ccTile = (key, label) => tile(key, M[key] && M[key].state === 'down' ? 'data coming (read failed)' : 'data coming', label, '', 'need');
+    const ccTile = (key, label) => tile(key, M[key] && M[key].state === 'down' ? 'couldn’t load' : 'data coming', label, '', 'need');
     const has = (k) => M[k] && !M[k].missing;
     const o = M.v2_outcome.v || {}, br = M.v2_book_rate.v || {};
     const ageMax = Math.max.apply(null, ages.map((r) => r[2]).concat([1]));
@@ -13635,23 +13635,23 @@ function todo(pages, all) {
     const srcBars = srcs.map(([k, lab]) => has(k) ? `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"><span class="v2-bf v2-fill" style="width:${Math.round(M[k].v / sMax * 100)}%"></span></span><b>${inr(M[k].v)}</b></div>` : '').join('')
       + [['v2_src_wa_agent', 'WhatsApp · agent'], ['v2_src_wa_b2c', 'WhatsApp · B2C']].map(([k, lab]) => `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"></span><b class="v2-na">data coming</b></div>`).join('');
     const outcomeTiles = has('v2_outcome')
-      ? tile('v2_outcome', `${inr(o.won + o.lost)} <small>of ${inr(o.all)}</small>`, 'quotes marked Booked or Lost', `Booked ${inr(o.won)} · Lost ${inr(o.lost)} · Pending ${inr(o.pending)}`, o.won + o.lost ? 'ok' : 'bad', 'Quotes by outcome')
+      ? tile('v2_outcome', `${inr(o.won + o.lost)} <small>of ${inr(o.all)}</small>`, 'quotes marked Won or Lost', `Won ${inr(o.won)} · Lost ${inr(o.lost)} · Pending ${inr(o.pending)}`, o.won + o.lost ? 'ok' : 'bad', 'Quotes by outcome')
         + tile('v2_book_rate', pct(br.won, br.of), 'quote → booking', `${inr(br.won)} won of ${inr(br.of)} quotes in 90 days`, br.won ? 'ok' : 'bad')
-        + tile('v2_booked_value', '₹' + inr(M.v2_booked_value.v), 'booked value', 'Grand total of Booked quotes', M.v2_booked_value.v ? 'ok' : 'bad')
-      : ccTile('v2_outcome', 'quotes marked Booked or Lost') + ccTile('v2_book_rate', 'quote → booking') + ccTile('v2_booked_value', 'booked value');
-    const moneyTiles = (has('v2_margin') ? tile('v2_margin', '₹' + inr(M.v2_margin.v), 'booked margin', 'markup on Booked quotes = money earned', M.v2_margin.v ? 'ok' : 'bad') : ccTile('v2_margin', 'booked margin'))
-      + (has('v2_fees') ? tile('v2_fees', wk(M.v2_fees.v, 1), 'quote fees charged · history only', 'wallet DEBIT rows (per-quote charges)', 'plain') + tile('v2_topups', wk(M.v2_topups.v, 1), 'wallet top-ups · history only', 'wallet CREDIT rows: prepaid, not earned', 'plain')
+        + tile('v2_booked_value', '₹' + inr(M.v2_booked_value.v), 'booked value', 'Grand total of Won quotes', M.v2_booked_value.v ? 'ok' : 'bad')
+      : ccTile('v2_outcome', 'quotes marked Won or Lost') + ccTile('v2_book_rate', 'quote → booking') + ccTile('v2_booked_value', 'booked value');
+    const moneyTiles = (has('v2_margin') ? tile('v2_margin', '₹' + inr(M.v2_margin.v), 'booked margin', 'markup on Won quotes = money earned', M.v2_margin.v ? 'ok' : 'bad') : ccTile('v2_margin', 'booked margin'))
+      + (has('v2_fees') ? tile('v2_fees', wk(M.v2_fees.v, 1), 'quote fees charged · history only', 'wallet DEBIT rows (per-quote charges); free forever since 16 Nov', 'plain') + tile('v2_topups', wk(M.v2_topups.v, 1), 'wallet top-ups · history only', 'wallet CREDIT rows; free forever since 16 Nov', 'plain')
         : ccTile('v2_fees', 'quote fees charged · history only') + ccTile('v2_topups', 'wallet top-ups · history only'));
     const la = M.v2_src_last_agent.v || {}, ae = M.v2_src_agents_ever.v || {};
     const agentTiles = (has('v2_src_last_agent') ? tile('v2_src_last_agent', esc(la.date || '—'), 'last app quote by an agent', la.days == null ? 'no agent quote yet' : `${inr(la.days)} days ago`, la.days != null && la.days <= 14 ? 'ok' : 'bad') : ccTile('v2_src_last_agent', 'last app quote by an agent'))
       + (has('v2_src_agents_ever') ? tile('v2_src_agents_ever', `${inr(ae.n)} <small>of ${inr(ae.of)}</small>`, 'agent accounts that ever quoted', 'role AGENT / USER in Users', 'warn') : ccTile('v2_src_agents_ever', 'agent accounts that ever quoted'))
       + ccTile('v2_src_b2c_share', 'of WhatsApp quotes are B2C');
     const w2 = head('v2-h-now', '◎', 'Current reality', 'won / lost · money earned · speed · where quotes come from') + `<div class="v2-grid v2-g2">` +
-      card('v2-c-terra', '✓', 'Booked / lost and booked value', 'Which quotes became bookings and what they were worth. It stays at 0 until consultants mark Booked or Lost.',
-        `<div class="v2-tiles v2-t3">${outcomeTiles}</div><p class="v2-how"><b>Marker:</b> the consultant who owns the quote presses Booked or Lost on My Itineraries on the day the client pays the deposit or says no. <b>Open:</b> who marks and from which date (Sumit).</p>`,
+      card('v2-c-terra', '✓', 'Won / lost and booked value', 'Which quotes became bookings and what they were worth. It stays at 0 until consultants mark Won or Lost.',
+        `<div class="v2-tiles v2-t3">${outcomeTiles}</div><p class="v2-how"><b>Marker:</b> the consultant who owns the quote presses Won or Lost on My Itineraries on the day the client pays the deposit or says no. <b>Open:</b> who marks and from which date (Sumit).</p>`,
         'Source: Quote_Log, all rows · Outcome, Grand Total') +
       card('v2-c-sage', '₹', 'Money earned, kept apart from wallet money', 'What TripStore keeps on booked trips, next to the wallet money agents are charged per quote or prepay.',
-        `<div class="v2-tiles v2-t3">${moneyTiles}</div><p class="v2-how">The first window's "Revenue" is called <b>Quote fees</b>: it counts wallet DEBIT rows (charges), not top-ups. Under free-forever there are no new quote fees, so the fee and top-up cards show history only.</p>`,
+        `<div class="v2-tiles v2-t3">${moneyTiles}</div><p class="v2-how">The first window's "Revenue" is called <b>Quote fees</b>: it counts wallet DEBIT rows (charges), not top-ups.</p>`,
         'Source: Quote_Log · Markup Amount, Outcome · Agent_Wallet · DEBIT and CREDIT rows') +
       card('v2-c-sky', '⏱', 'Speed', 'How fast a client gets a quote, and how long the quotes still waiting have been open.',
         `<div class="v2-tiles v2-t2">${ccTile('v2_wa_speed', 'WhatsApp: request → PDF')}${needTile('v2_app_speed', 'App: request → first quote')}</div>` +
@@ -13662,8 +13662,8 @@ function todo(pages, all) {
         'Source: Quote_Log + Users (all dates) · WhatsApp: bot log, data coming') + `</div>`;
     const rw = M.v2_rework.v || {}, ls = M.v2_link_saved && M.v2_link_saved.v, lb = M.v2_link_blank && M.v2_link_blank.v, ld = M.light_days;
     const TODO = [
-      ['b', 'v2_outcome', has('v2_outcome') ? `${inr(o.won + o.lost)} of ${inr(o.all)} quotes marked Booked or Lost` : 'Booked / Lost not readable', 'Sumit: who marks, from when', L.wl],
-      ['b', 'v2_margin', 'Booked margin and booked value can\'t be counted until Booked is marked', 'Sumit (same as above)', L.wl],
+      ['b', 'v2_outcome', has('v2_outcome') ? `${inr(o.won + o.lost)} of ${inr(o.all)} quotes marked Won or Lost` : 'Won / Lost not readable', 'Sumit: who marks, from when', L.wl],
+      ['b', 'v2_margin', 'Booked margin and booked value can\'t be counted until Won is marked', 'Sumit (same as above)', L.wl],
       ['b', 'v2_app_speed', 'App: time from request to first quote not recorded', 'CC: add the column', L.card],
       ['b', 'v2_followup', `${inr((ages.find((r) => /over/.test(r[1])) || [0, 0, 0])[2])} pending quotes older than 90 days; no last-contact date`, 'Sumit: sales follow-up · CC: column', L.card],
       ['b', 'v2_wa_speed', 'WhatsApp bot numbers (chats, quotes, speed, B2C) not readable in the app', 'CC: how the app may read the bot logs', L.i207],
@@ -13886,7 +13886,7 @@ function todo(pages, all) {
   F.status = (s) => {
     const k = String(s || 'Pending').trim();   // Pending = the approved page's classes; Won / Lost = inline colours (their classes are not in the captured CSS)
     if (!/^(won|lost)$/i.test(k)) return `<span class="bg-[#FEF3C7] text-[#92400E] text-[10px] font-bold px-2 py-0.5 rounded-full">${F.e(k)}</span>`;
-    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="${/^won$/i.test(k) ? 'background:#D1FAE5;color:#065F46' : 'background:#F1F5F9;color:#475569'}">${F.e(tsOutcomeShow_(k))}</span>`;
+    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="${/^won$/i.test(k) ? 'background:#D1FAE5;color:#065F46' : 'background:#F1F5F9;color:#475569'}">${F.e(k)}</span>`;
   };
   // "Cost per quote by part" tiles (build_quote_data.js): share of the four parts' total, bar = share
   F.costTiles = (rev) => {
@@ -14164,7 +14164,7 @@ function todo(pages, all) {
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -14255,7 +14255,7 @@ function todo(pages, all) {
     const page = (main) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank"><title>TripStore · Quote</title>${FONTS}<style>${mods.CSS}</style></head><body class="min-h-screen antialiased pb-16 selection:bg-terracotta selection:text-white">${main}</body></html>`;
     if (!X.Q || X.Q.missing || !X.W || !X.E) {
       const why = (X.Q && X.Q.missing) || 'the quote list did not answer';
-      return mods.inject(page(`<main class="max-w-[1680px] mx-auto px-3 sm:px-5 py-4"><div class="qq-card-crisp p-4"><h3 class="font-serif font-bold text-sm text-[#1F1C19]">Quote dashboard: not available</h3><p class="text-[11px] text-[#786F66]">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
+      return mods.inject(page(`<main class="max-w-[1680px] mx-auto px-3 sm:px-5 py-4"><div class="qq-card-crisp p-4"><h3 class="font-serif font-bold text-sm text-[#1F1C19]">Quote dashboard: couldn’t load</h3><p class="text-[11px] text-[#786F66]">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
     }
     const a = X.asOf || {}, Q = X.Q;
     const NOTE = 'Live from the DEV backend: all ' + mods.F.n(Q.quotes) + ' quotes' + (Q.quote_span ? ', ' + Q.quote_span[0] + ' – ' + Q.quote_span[1] : '') + (a.read ? ', read at ' + a.read + ' IST' : '') +
@@ -14680,7 +14680,7 @@ function todo(pages, all) {
     };
     // ---------- small parts ----------
     const tile = (key, val, label, sub, state, title) => `<div class="v2-tile v2-${state}" data-c6="${key}" data-title="${esc(title || label)}"><b>${val}</b><span>${esc(label)}</span>${sub ? `<i>${esc(sub)}</i>` : ''}</div>`;
-    const needTile = (key, label) => tile(key, 'needs a column', label, 'needs: ' + M[key].missing, 'need');
+    const needTile = (key, label) => tile(key, 'data coming', label, 'needs: ' + M[key].missing, 'need');
     const wk = (o, money) => { const f = money ? x => '₹' + inr(x) : x => inr(x); return `${f(o.w)} <small>vs ${f(o.p)} last week</small>`; };
     let PG = 'b';   // page being built: b / q / d — cards and headings use that page's own classes
     // colours per card, taken from the approved pages (Business sections, Data panels, Quote card tops)
@@ -14785,7 +14785,7 @@ function todo(pages, all) {
     const page = (main) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank"><title>TripStore · Data</title>${FONTS}<style>${mods.CSS}</style></head><body>${main}</body></html>`;
     if (!X.C || X.C.missing || !X.DD) {
       const why = (X.C && X.C.missing) || 'the catalogue did not answer';
-      return mods.inject(page(`<main><div class="business-panel"><h3>Data dashboard: not available</h3><p class="business-panel-intro">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
+      return mods.inject(page(`<main><div class="business-panel"><h3>Data dashboard: couldn’t load</h3><p class="business-panel-intro">Needs ${mods.F.e(why)}. Press Refresh.</p></div></main>`), { m: {}, lists: {} });
     }
     const C = X.C, DD = X.DD, rd = DD.rate_dates || {}, a = X.asOf || {};
     const TAG = 'Live from the DEV backend' + (a.read ? ' · read at ' + a.read + ' IST' : '') + ' · rates refreshed this week: ' + mods.F.n(rd.in_week) + ' (last week ' + mods.F.n(rd.in_prev) +
@@ -14934,6 +14934,8 @@ function applyRoleVisibility(role) {
         if (!btn) return;
         btn.style.display = allowed.indexOf(t) >= 0 ? 'inline-block' : 'none';
     });
+    // OWNER 24 Nov (#235): when the Business tab is present, ADMIN sees it instead of the three old dashboards (Quote, Data, Coverage)
+    if (r === 'ADMIN' && document.getElementById('navBtn-business')) ['quote', 'data', 'coverage'].forEach(t => { const b = document.getElementById('navBtn-' + t); if (b) b.style.display = 'none'; });
     const lbl = document.getElementById('navRoleLabel');
     if (lbl) lbl.textContent = r || 'USER';
     if (allowed.indexOf('wallet') >= 0 || allowed.indexOf('agents') >= 0) setTimeout(tsAgentsPrefetch_, 4000);   // WALLET-SPEED W7
