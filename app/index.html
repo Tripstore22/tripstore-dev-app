@@ -2363,43 +2363,418 @@ input[type="date"]#quickStartDate:focus {
   </div>
 </div>
 
-<div id="tab-profile" style="display:none;flex:1;overflow-y:auto;padding:24px 28px;background:var(--cream);">
-  <div style="max-width:1000px;margin:0 auto;">
-    <div style="font-family:var(--serif);font-size:22px;font-style:italic;color:var(--ink);margin-bottom:20px;">My Profile</div>
-    <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start;">
-      <!-- Left: logo card -->
-      <div style="background:var(--white);border-radius:12px;padding:24px 20px;border:1px solid var(--border);text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
-        <div style="width:140px;height:140px;border-radius:10px;background:var(--cream2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;">
-          <img id="profileLogoPreview" src="" alt="" style="max-height:130px;max-width:130px;display:none;object-fit:contain;">
-          <div id="profileLogoPlaceholder" style="color:var(--sand);font-size:11px;text-align:center;line-height:1.4;">No logo<br>uploaded</div>
-        </div>
-        <input id="profileLogoUrl" type="hidden">
-        <label style="background:var(--cream2);border:1px solid var(--border2);border-radius:8px;padding:8px 16px;font-size:11px;font-weight:700;color:var(--ink3);cursor:pointer;width:100%;text-align:center;box-sizing:border-box;">
-          📁 Choose File
-          <input id="profileLogoFile" type="file" accept="image/png,image/jpeg,image/jpg" onchange="uploadLogoFile(this)" style="display:none;">
-        </label>
-        <span id="profileLogoUploadStatus" style="font-size:11px;color:var(--ink4);min-height:16px;"></span>
+<div id="tab-profile" class="ts-mp" style="display:none;">   <!-- MY PROFILE: approved design (#274, owner 19 Nov) -->
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+.ts-mp{color-scheme: light;--paper: #f5f7fb;--paper-warm: #faf7f2;--card: #fff;--ink: #172033;--muted: #64748b;--line: #dfe6ef;--terra: #c96f49;--terra-deep: #ad5735;--terra-soft: #fff4ed;--teal: #147e8b;--green: #15803d;--serif: "Playfair Display", Georgia, serif;--sans: "Plus Jakarta Sans", system-ui, sans-serif;--brand-color: #c65b2b;--brand-start: #32190f;--brand-mid: #d89b80;--brand-ink: #32190f;--brand-text: #fff;--brand-tint: #f2ded5;--brand-soft: #fbf4f0;--brand-border: #e8bba8;--shadow: 0 8px 24px rgba(23, 32, 51, .06);}
+.ts-mp, .ts-mp *{box-sizing: border-box;}
+.ts-mp{min-width: 0;min-height: 100vh;margin: 0;color: var(--ink);background:radial-gradient(ellipse at 90% 0%, rgba(201, 111, 73, .08), transparent 32rem),var(--paper);font: 14px/1.5 var(--sans);-webkit-font-smoothing: antialiased;}
+.ts-mp button,.ts-mp input{color: inherit; font: inherit;}
+.ts-mp button,.ts-mp a{-webkit-tap-highlight-color: transparent;}
+.ts-mp button{cursor: pointer;}
+.ts-mp a{color: inherit;}
+.ts-mp .platform-header{position: sticky;top: 0;z-index: 10;border-bottom: 1px solid var(--line);background: rgba(255,255,255,.96);box-shadow: 0 1px 8px rgba(23,32,51,.04);backdrop-filter: blur(12px);}
+.ts-mp .header-inner{width: min(1600px, 100%);min-height: 70px;margin: auto;padding: 0 28px;display: flex;align-items: center;gap: 22px;}
+.ts-mp .brand-logo{flex: 0 0 auto; display: flex; align-items: center;}
+.ts-mp .brand-logo img{display: block; width: 126px; height: 42px; object-fit: contain;}
+.ts-mp .nav-divider{width: 1px; height: 28px; background: var(--line); flex: 0 0 auto;}
+.ts-mp .platform-nav{display: flex;align-items: center;gap: 4px;min-width: 0;flex: 1 1 auto;overflow-x: auto;scrollbar-width: none;}
+.ts-mp .platform-nav::-webkit-scrollbar{display: none;}
+.ts-mp .nav-link{display: inline-flex;align-items: center;gap: 7px;flex: 0 0 auto;min-height: 40px;padding: 0 12px;border: 1px solid transparent;border-radius: 8px;color: #4b5b70;background: transparent;font-size: 12px;font-weight: 700;text-decoration: none;white-space: nowrap;transition: background .15s ease, color .15s ease, border-color .15s ease;}
+.ts-mp .nav-link:hover{color: var(--ink); background: #f1f5f9;}
+.ts-mp .nav-link.active{color: var(--terra-deep);background: var(--terra-soft);border-color: #f3cbb8;}
+.ts-mp .user-actions{display: flex; align-items: center; gap: 12px; flex: 0 0 auto;}
+.ts-mp .wallet{display: inline-flex;align-items: center;gap: 6px;padding: 6px 10px;border: 1px solid #bbf7d0;border-radius: 999px;color: #166534;background: #f0fdf4;font-size: 11px;font-weight: 800;white-space: nowrap;}
+.ts-mp .wallet strong{color: var(--green);}
+.ts-mp .user-chip{display: flex; align-items: center; gap: 7px; white-space: nowrap;}
+.ts-mp .user-avatar{width: 30px;height: 30px;display: grid;place-items: center;border: 1px solid #e8b9a1;border-radius: 50%;color: #fff;background: linear-gradient(145deg, #e8a27d, var(--terra-deep));font-size: 11px;font-weight: 800;}
+.ts-mp .user-name{color: #475569; font-size: 11px; font-weight: 700;}
+.ts-mp .logout{padding: 6px 10px;border: 1px solid #d9e1e9;border-radius: 7px;color: #64748b;background: #fff;font-size: 11px;font-weight: 800;}
+.ts-mp .logout:hover{border-color: #cbd5e1; background: #f8fafc;}
+.ts-mp main{width: min(1510px, 100%); margin: auto; padding: 24px 30px 34px;}
+.ts-mp .button{display: inline-flex;align-items: center;justify-content: center;gap: 8px;min-height: 39px;padding: 0 15px;border: 1px solid transparent;border-radius: 9px;font-size: 12px;font-weight: 800;text-decoration: none;transition: transform .15s ease, box-shadow .15s ease, background .15s ease;}
+.ts-mp .button:hover{transform: translateY(-1px);}
+.ts-mp .button.primary{color: #fff;background: linear-gradient(135deg, #d8845e, var(--terra));box-shadow: 0 5px 12px rgba(173,87,53,.16);}
+.ts-mp .button.primary:hover{box-shadow: 0 8px 16px rgba(173,87,53,.22);}
+.ts-mp .button.secondary{border-color: var(--line); color: #4b5b70; background: #fff;}
+.ts-mp .button.secondary:hover{background: #f8fafc;}
+.ts-mp .button:focus-visible,.ts-mp input:focus-visible,.ts-mp a:focus-visible,.ts-mp .upload-zone:focus-visible{outline: 3px solid rgba(201,111,73,.35);outline-offset: 2px;}
+.ts-mp .welcome-banner{position: relative;display: grid;grid-template-columns: minmax(0,1fr) auto;align-items: center;gap: 20px;overflow: hidden;min-height: 99px;margin-bottom: 16px;padding: 17px 24px;border: 1px solid #ecd9cb;border-radius: 15px;background: linear-gradient(105deg, #fff 0%, #fff8f2 65%, #f8e7dc 100%);box-shadow: 0 4px 14px rgba(23,32,51,.04);}
+.ts-mp .welcome-banner::after{position: absolute;top: -76px;right: 210px;width: 230px;height: 230px;border: 1px solid rgba(201,111,73,.11);border-radius: 50%;box-shadow: 0 0 0 24px rgba(201,111,73,.035), 0 0 0 48px rgba(201,111,73,.025);content: "";pointer-events: none;}
+.ts-mp .banner-copy{position: relative; z-index: 1;}
+.ts-mp .banner-kicker{display: flex; align-items: center; gap: 7px; margin-bottom: 3px; color: var(--terra-deep); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;}
+.ts-mp .banner-title{margin: 0; font: 700 21px/1.2 var(--serif);}
+.ts-mp .banner-description{margin: 4px 0 0; color: #64748b; font-size: 12px;}
+.ts-mp .banner-progress{position: relative;z-index: 1;display: grid;grid-template-columns: 44px auto;align-items: center;gap: 11px;min-width: 220px;padding: 10px 13px;border: 1px solid rgba(255,255,255,.85);border-radius: 12px;background: rgba(255,255,255,.78);}
+.ts-mp .progress-ring{position: relative;width: 42px;height: 42px;display: grid;place-items: center;border-radius: 50%;color: var(--terra-deep);background: conic-gradient(var(--terra) var(--progress, 80%), #eadfd6 0);font-size: 11px;font-weight: 800;}
+.ts-mp .progress-ring::before{position: absolute;width: 32px;height: 32px;border-radius: 50%;background: #fff;content: "";}
+.ts-mp .progress-ring span{position: relative; z-index: 1;}
+.ts-mp .progress-copy strong{display: block; font-size: 12px;}
+.ts-mp .progress-copy small{color: #64748b; font-size: 10px;}
+.ts-mp .profile-grid{display: grid;grid-template-columns: minmax(235px, .78fr) minmax(390px, 1.35fr) minmax(290px, .95fr);align-items: stretch;gap: 16px;}
+.ts-mp .card{min-width: 0;border: 1px solid var(--line);border-radius: 15px;background: rgba(255,255,255,.96);box-shadow: var(--shadow);}
+.ts-mp .identity-card{display: flex; flex-direction: column; padding: 17px;}
+.ts-mp .card-heading{display: flex;align-items: flex-start;justify-content: space-between;gap: 10px;margin-bottom: 13px;}
+.ts-mp .card-heading h2{margin: 0; font: 700 18px/1.2 var(--serif);}
+.ts-mp .card-heading p{margin: 4px 0 0; color: var(--muted); font-size: 12px;}
+.ts-mp .tag{flex: 0 0 auto;padding: 4px 8px;border: 1px solid #cdebd6;border-radius: 999px;color: #187445;background: #effaf2;font-size: 10px;font-weight: 800;}
+.ts-mp .upload-zone{position: relative;display: grid;min-height: 194px;place-items: center;overflow: hidden;padding: 14px;border: 1.5px dashed #dcc9bb;border-radius: 13px;background: linear-gradient(145deg, #fbf7f2, #f5eee6);text-align: center;cursor: pointer;transition: border-color .16s ease, background .16s ease, transform .16s ease;}
+.ts-mp .upload-zone:hover,.ts-mp .upload-zone.dragover{border-color: var(--terra); background: #fff8f3;}
+.ts-mp .upload-content{display: grid; justify-items: center; gap: 7px; color: #6b625b;}
+.ts-mp .upload-icon{width: 45px;height: 45px;display: grid;place-items: center;border: 1px solid #f0d7c7;border-radius: 13px;color: var(--terra);background: #fff;}
+.ts-mp .upload-content strong{color: #3d342f; font-size: 13px;}
+.ts-mp .upload-content small{max-width: 190px; font-size: 11px; line-height: 1.5;}
+.ts-mp .logo-preview{display: none;width: 100%;height: 164px;object-fit: contain;border-radius: 7px;}
+.ts-mp .upload-zone.has-logo{border-style: solid; background: #fff;}
+.ts-mp .upload-zone.has-logo .upload-content{display: none;}
+.ts-mp .upload-zone.has-logo .logo-preview{display: block;}
+.ts-mp .upload-actions{display: flex; align-items: center; gap: 8px; margin-top: 10px;}
+.ts-mp .upload-actions .button{flex: 1; min-height: 38px; font-size: 12px;}
+.ts-mp .remove-logo{display: none; color: #9f4037 !important;}
+.ts-mp .upload-zone.has-logo + .upload-actions .remove-logo{display: inline-flex; flex: 0 0 auto; padding: 0 10px;}
+.ts-mp .file-input{position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;}
+.ts-mp .identity-divider{height: 1px; margin: 15px 0 12px; background: #edf0f4;}
+.ts-mp .identity-meta{display: grid; gap: 11px;}
+.ts-mp .meta-row{display: flex; align-items: center; gap: 9px; min-width: 0;}
+.ts-mp .meta-icon{width: 29px; height: 29px; flex: 0 0 29px; display: grid; place-items: center; border-radius: 9px; color: var(--terra-deep); background: #fff3eb;}
+.ts-mp .meta-copy{min-width: 0;}
+.ts-mp .meta-copy small{display: block; color: #8290a1; font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;}
+.ts-mp .meta-copy strong{display: block; overflow: hidden; color: #344054; font-size: 12px; text-overflow: ellipsis; white-space: nowrap;}
+.ts-mp .form-card{padding: 19px 20px 17px;}
+.ts-mp .form-topline{display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px;}
+.ts-mp .form-topline h2{margin: 0; font: 700 18px/1.2 var(--serif);}
+.ts-mp .form-topline p{margin: 4px 0 0; color: var(--muted); font-size: 12px;}
+.ts-mp .required-note{padding-top: 3px; color: #8290a1; font-size: 11px; white-space: nowrap;}
+.ts-mp .form-grid{display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 14px;}
+.ts-mp .field{display: grid; align-content: start; gap: 5px; min-width: 0;}
+.ts-mp .field.full{grid-column: 1 / -1;}
+.ts-mp .field label,.ts-mp .field-label{color: #475569; font-size: 12px; font-weight: 800;}
+.ts-mp .field label span{color: var(--terra);}
+.ts-mp .field input{width: 100%;min-width: 0;height: 38px;padding: 0 11px;border: 1px solid #dbe2ea;border-radius: 8px;color: #263244;background: #fbfcfe;font-size: 13px;transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;}
+.ts-mp .field input:hover{border-color: #c6d0dc;}
+.ts-mp .field input:focus{border-color: var(--terra); outline: 0; background: #fff; box-shadow: 0 0 0 3px rgba(201,111,73,.12);}
+.ts-mp .field input::placeholder{color: #9aa5b1;}
+.ts-mp .field-help{color: #718096; font-size: 11px;}
+.ts-mp .color-field{grid-column: 1 / -1; display: grid; gap: 8px;}
+.ts-mp .color-heading{display: flex; align-items: center; justify-content: space-between; gap: 12px;}
+.ts-mp .color-heading .field-label{display: flex; align-items: center; gap: 6px;}
+.ts-mp .selected-color-label{color: #718096; font-size: 11px; font-weight: 700;}
+.ts-mp .color-options{display: flex; flex-wrap: wrap; align-items: center; gap: 9px;}
+.ts-mp .swatch{position: relative;width: 29px;height: 29px;padding: 0;border: 2px solid #fff;border-radius: 50%;background: var(--swatch);box-shadow: 0 0 0 1px #d6dce4;transition: transform .15s ease, box-shadow .15s ease;}
+.ts-mp .swatch:hover{transform: scale(1.09);}
+.ts-mp .swatch[aria-pressed="true"]{box-shadow: 0 0 0 2px var(--swatch), 0 0 0 4px #fff, 0 0 0 5px rgba(23,32,51,.25);}
+.ts-mp .swatch[aria-pressed="true"]::after{position: absolute;inset: 0;display: grid;place-items: center;color: #fff;content: "✓";font-size: 12px;font-weight: 800;text-shadow: 0 1px 3px rgba(0,0,0,.4);}
+.ts-mp .swatch-white[aria-pressed="true"]::after{color: #24201d; text-shadow: none;}
+.ts-mp .form-footer{position: sticky;bottom: 0;z-index: 4;display: flex;align-items: center;justify-content: space-between;gap: 14px;margin: 15px -20px -17px;padding: 13px 20px 17px;border-top: 1px solid #edf0f4;background: rgba(255,255,255,.98);box-shadow: 0 -8px 14px rgba(255,255,255,.9);}
+.ts-mp .privacy-note{display: flex; align-items: center; gap: 7px; min-width: 0; color: #667487; font-size: 11px;}
+.ts-mp .privacy-note svg{flex: 0 0 auto; color: #438b68;}
+.ts-mp .form-footer .button{min-width: 134px;}
+.ts-mp .preview-card{display: flex; flex-direction: column; overflow: hidden;}
+.ts-mp .preview-heading{display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 17px 17px 12px;}
+.ts-mp .preview-heading h2{margin: 0; font: 700 18px/1.2 var(--serif);}
+.ts-mp .preview-heading p{margin: 4px 0 0; color: var(--muted); font-size: 11px;}
+.ts-mp .live-tag{display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid #cdebd6; border-radius: 999px; color: #187445; background: #effaf2; font-size: 10px; font-weight: 800; white-space: nowrap;}
+.ts-mp .live-tag::before{width: 6px; height: 6px; border-radius: 50%; background: #22a06b; content: "";}
+.ts-mp .proposal-sheet{position: relative;display: flex;flex: 1 1 auto;flex-direction: column;min-height: 270px;margin: 0 14px;overflow: hidden;border: 1px solid var(--brand-border);border-radius: 11px;background: linear-gradient(180deg, var(--brand-soft), #fff 42%);box-shadow: 0 5px 15px rgba(39,35,31,.08);}
+.ts-mp .proposal-band{display: flex;align-items: center;gap: 10px;min-height: 69px;padding: 12px 14px;color: var(--brand-text);background: linear-gradient(108deg, var(--brand-start), var(--brand-color));border-bottom: 1px solid var(--brand-border);transition: background .2s ease;}
+.ts-mp .proposal-logo{width: 42px;height: 42px;flex: 0 0 42px;display: grid;place-items: center;overflow: hidden;border: 1px solid var(--brand-border);border-radius: 10px;color: var(--brand-ink);background: var(--brand-tint);font: 700 18px var(--serif);}
+.ts-mp .proposal-logo img{width: 100%; height: 100%; object-fit: contain;}
+.ts-mp .proposal-brand-copy{min-width: 0;}
+.ts-mp .proposal-brand-copy strong{display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap;}
+.ts-mp .proposal-brand-copy small{display: block; margin-top: 2px; color: var(--brand-text); opacity: .82; font-size: 10px; letter-spacing: .1em; text-transform: uppercase;}
+.ts-mp .proposal-brand-copy small[hidden]{display: none;}
+.ts-mp .proposal-cover{position: relative;min-height: 77px;display: flex;align-items: flex-end;padding: 13px 14px;overflow: hidden;color: #fff;background: linear-gradient(108deg, var(--brand-start), var(--brand-color) 58%, var(--brand-mid));}
+.ts-mp .proposal-cover::before,.ts-mp .proposal-cover::after{position: absolute;bottom: -29px;width: 180px;height: 110px;border-radius: 50% 50% 0 0;background: var(--brand-mid);opacity: .62;content: "";transform: rotate(-9deg);}
+.ts-mp .proposal-cover::before{left: 40px;}
+.ts-mp .proposal-cover::after{right: -40px; bottom: -48px; background: var(--brand-tint); opacity: .7; transform: rotate(12deg);}
+.ts-mp .cover-copy{position: relative; z-index: 1; color: var(--brand-text); text-shadow: 0 1px 5px rgba(0,0,0,.3);}
+.ts-mp .cover-copy small{display: block; font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;}
+.ts-mp .cover-copy strong{display: block; margin-top: 2px; font: italic 700 17px/1.1 var(--serif);}
+.ts-mp .proposal-body{padding: 13px 14px;}
+.ts-mp .proposal-route{display: flex; align-items: center; gap: 7px; color: var(--brand-ink); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;}
+.ts-mp .route-line{height: 1px; flex: 1; background: var(--brand-border);}
+.ts-mp .trip-stops{display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; margin-top: 11px;}
+.ts-mp .trip-stop{position: relative; padding: 8px 7px; border: 1px solid var(--brand-border); border-radius: 8px; background: var(--brand-soft);}
+.ts-mp .trip-stop strong{display: block; color: var(--brand-ink); font-size: 11px;}
+.ts-mp .trip-stop small{display: block; margin-top: 2px; color: #64748b; font-size: 9px;}
+.ts-mp .proposal-note{display: flex; align-items: flex-start; gap: 7px; margin-top: 12px; padding: 8px 9px; border: 1px solid var(--brand-border); border-left: 3px solid var(--brand-mid); border-radius: 8px; color: #536174; background: var(--brand-tint); font-size: 10px; line-height: 1.45;}
+.ts-mp .proposal-note b{color: var(--brand-color);}
+.ts-mp .proposal-bottom{display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--brand-border); color: #64748b; font-size: 9px;}
+.ts-mp .proposal-bottom strong{padding: 3px 5px; border-radius: 4px; color: var(--brand-ink); background: var(--brand-tint);}
+.ts-mp .preview-caption{display: flex; align-items: center; gap: 8px; margin: 10px 16px 15px; color: #526176; font-size: 11px;}
+.ts-mp .preview-caption svg{flex: 0 0 auto; color: var(--brand-color);}
+.ts-mp .lower-grid{display: grid; grid-template-columns: minmax(0,1.4fr) minmax(300px,.9fr); gap: 16px; margin-top: 16px;}
+.ts-mp .checklist-card,.ts-mp .account-card{padding: 15px 17px;}
+.ts-mp .lower-heading{display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;}
+.ts-mp .lower-heading h2{margin: 0; font: 700 15px/1.2 var(--serif);}
+.ts-mp .lower-heading span{color: #657386; font-size: 11px;}
+.ts-mp .checklist-items{display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px;}
+.ts-mp .check-item{display: flex; align-items: center; gap: 9px; min-width: 0; padding: 10px; border: 1px solid #edf0f4; border-radius: 9px; background: #fcfdfe;}
+.ts-mp .check-icon{width: 25px; height: 25px; flex: 0 0 25px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #37a36d;}
+.ts-mp .check-item.pending .check-icon{color: #9b663b; background: #f9ead9;}
+.ts-mp .check-copy{min-width: 0;}
+.ts-mp .check-copy strong{display: block; overflow: hidden; color: #344054; font-size: 11px; text-overflow: ellipsis; white-space: nowrap;}
+.ts-mp .check-copy small{display: block; margin-top: 1px; color: #64748b; font-size: 10px;}
+.ts-mp .account-content{display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;}
+.ts-mp .account-copy{display: flex; align-items: center; gap: 10px; min-width: 0;}
+.ts-mp .account-icon{width: 37px; height: 37px; flex: 0 0 37px; display: grid; place-items: center; border: 1px solid #d7e5e3; border-radius: 11px; color: var(--teal); background: #edf7f6;}
+.ts-mp .account-copy strong{display: block; font-size: 11px;}
+.ts-mp .account-copy small{display: block; margin-top: 2px; color: #64748b; font-size: 10px;}
+.ts-mp .account-link{color: var(--terra-deep); font-size: 11px; font-weight: 800; text-decoration: none; white-space: nowrap;}
+.ts-mp .account-link:hover{text-decoration: underline;}
+.ts-mp .page-footer{display: flex;align-items: center;justify-content: space-between;gap: 12px;margin-top: 15px;padding: 0 2px;color: #8995a2;font-size: 11px;}
+.ts-mp .page-footer strong{color: #617080;}
+.ts-mp .toast{position: fixed;right: 22px;bottom: 22px;z-index: 30;display: flex;align-items: center;gap: 10px;max-width: min(390px, calc(100vw - 32px));padding: 12px 15px;border: 1px solid #cdebd6;border-radius: 11px;color: #14532d;background: #f0fdf4;box-shadow: 0 12px 30px rgba(23,32,51,.16);font-size: 12px;font-weight: 700;opacity: 0;pointer-events: none;transform: translateY(8px);transition: opacity .2s ease, transform .2s ease;}
+.ts-mp .toast.show{opacity: 1; transform: translateY(0);}
+.ts-mp .toast.error{border-color: #fecaca; color: #991b1b; background: #fef2f2;}
+@media (max-width: 1180px){.ts-mp .header-inner{gap: 13px; padding-inline: 18px;}
+.ts-mp .brand-logo img{width: 110px;}
+.ts-mp .nav-link{gap: 5px; padding-inline: 9px; font-size: 11px;}
+.ts-mp .profile-grid{grid-template-columns: minmax(220px,.78fr) minmax(370px,1.3fr);}
+.ts-mp .preview-card{grid-column: 1 / -1; display: grid; grid-template-columns: minmax(180px,.55fr) minmax(0,1.45fr) minmax(170px,.6fr); align-items: center;}
+.ts-mp .preview-heading{align-self: start;}
+.ts-mp .proposal-sheet{width: 100%; min-height: 235px; margin-block: 14px;}
+.ts-mp .preview-caption{margin-inline: 12px;}
+}
+@media (max-width: 850px){.ts-mp .header-inner{flex-wrap: wrap; gap: 8px 14px; padding: 10px 16px;}
+.ts-mp .brand-logo img{width: 105px; height: 34px;}
+.ts-mp .nav-divider{display: none;}
+.ts-mp .platform-nav{order: 3; flex-basis: 100%;}
+.ts-mp .nav-link.active{margin-right: 8px;}
+.ts-mp .user-actions{margin-left: auto;}
+.ts-mp main{padding: 20px 18px 28px;}
+.ts-mp .profile-grid{grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr);}
+.ts-mp .preview-card{grid-column: 1 / -1;}
+}
+@media (max-width: 620px){.ts-mp .header-inner{padding: 9px 12px 7px;}
+.ts-mp .brand-logo img{width: 94px; height: 32px;}
+.ts-mp .user-actions{gap: 8px;}
+.ts-mp .wallet{padding: 5px 7px; font-size: 10px;}
+.ts-mp .user-name{display: none;}
+.ts-mp .logout{padding: 5px 7px; font-size: 10px;}
+.ts-mp .nav-link{min-height: 36px; padding-inline: 9px; font-size: 11px;}
+.ts-mp main{padding: 17px 12px 24px;}
+.ts-mp .welcome-banner{grid-template-columns: minmax(0,1fr); gap: 11px; padding: 14px;}
+.ts-mp .welcome-banner::after{right: -60px;}
+.ts-mp .banner-title{font-size: 18px;}
+.ts-mp .banner-description{font-size: 11px;}
+.ts-mp .banner-progress{grid-template-columns: 37px auto; min-width: 0; width: 100%; padding: 8px 10px;}
+.ts-mp .progress-ring{width: 36px; height: 36px;}
+.ts-mp .progress-ring::before{width: 28px; height: 28px;}
+.ts-mp .profile-grid{grid-template-columns: minmax(0,1fr); gap: 12px;}
+.ts-mp .identity-card{display: grid; grid-template-columns: minmax(120px,.72fr) minmax(0,1fr); align-items: center; gap: 13px; padding: 13px;}
+.ts-mp .identity-card .card-heading{grid-column: 1 / -1; margin-bottom: 0;}
+.ts-mp .upload-zone{min-height: 152px;}
+.ts-mp .logo-preview{height: 128px;}
+.ts-mp .upload-actions{grid-column: 1; flex-direction: column; align-items: stretch; margin-top: 0;}
+.ts-mp .upload-actions .button{min-height: 33px;}
+.ts-mp .upload-zone.has-logo + .upload-actions .remove-logo{min-height: 30px;}
+.ts-mp .identity-divider{display: none;}
+.ts-mp .identity-meta{gap: 10px;}
+.ts-mp .form-card{padding: 15px 13px;}
+.ts-mp .form-topline h2{font-size: 17px;}
+.ts-mp .form-grid{gap: 11px 9px;}
+.ts-mp .field input{height: 40px; padding-inline: 9px; font-size: 12px;}
+.ts-mp .color-options{gap: 5px;}
+.ts-mp .swatch{width: 24px; height: 24px;}
+.ts-mp .form-footer{align-items: flex-start; flex-direction: column; margin: 15px -13px -13px; padding: 12px 13px 13px;}
+.ts-mp .form-footer .button{width: 100%;}
+.ts-mp .preview-card{display: flex; grid-column: auto;}
+.ts-mp .proposal-sheet{min-height: 260px; margin: 0 12px;}
+.ts-mp .preview-caption{margin-bottom: 12px;}
+.ts-mp .lower-grid{grid-template-columns: minmax(0,1fr); gap: 12px; margin-top: 12px;}
+.ts-mp .checklist-items{grid-template-columns: minmax(0,1fr); gap: 7px;}
+.ts-mp .checklist-card,.ts-mp .account-card{padding: 13px;}
+.ts-mp .page-footer{align-items: flex-start; flex-direction: column; gap: 4px; font-size: 10px;}
+}
+@media (min-width: 1181px) and (max-height: 850px){.ts-mp main{padding-top: 14px;}
+.ts-mp .welcome-banner{min-height: 88px; margin-bottom: 12px; padding-block: 12px;}
+.ts-mp .form-card{padding: 14px 16px 13px;}
+.ts-mp .form-topline{margin-bottom: 9px;}
+.ts-mp .form-grid{gap: 7px 12px;}
+.ts-mp .field{gap: 3px;}
+.ts-mp .field input{height: 34px;}
+.ts-mp .field-help{font-size: 10px; line-height: 1.25;}
+.ts-mp .color-field{gap: 5px;}
+.ts-mp .swatch{width: 26px; height: 26px;}
+}
+@media (min-width: 1181px){.ts-mp main{min-height: calc(100vh - 71px); display: flex; flex-direction: column;}
+.ts-mp .profile-grid{flex: 1 0 auto;}
+.ts-mp .identity-card,.ts-mp .form-card,.ts-mp .preview-card{min-height: 0;}
+.ts-mp .form-card{display: flex; flex-direction: column;}
+.ts-mp .form-footer{position: static; margin-top: auto;}
+.ts-mp .preview-caption{margin-top: auto;}
+.ts-mp .lower-grid{position: sticky; top: 84px; z-index: 5; scroll-margin-top: 84px;}
+}
+@media (prefers-reduced-motion: reduce){.ts-mp, .ts-mp *,.ts-mp::before, .ts-mp *::before,.ts-mp::after, .ts-mp *::after{scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important;}
+}
+.ts-mp{display:block;flex:1;overflow-y:auto;min-height:0;}
+.ts-mp .mp-note{display:none;margin:8px 0 0;padding:8px 10px;border:1px solid #f3d9a8;border-radius:8px;background:#fff8ea;color:#7a5410;font-size:11px;}
+.ts-mp .mp-note.on{display:block;}
+</style>
+<main>
+    <section class="welcome-banner" aria-label="Profile setup status">
+      <div class="banner-copy">
+        <div class="banner-kicker"><span aria-hidden="true">✦</span> Your agency, beautifully presented</div>
+        <h2 class="banner-title">A little profile polish goes a long way.</h2>
+        <p class="banner-description">Your logo, contact details, and chosen color appear on the proposals you share with clients.</p>
       </div>
-      <!-- Right: form fields -->
-      <div style="background:var(--white);border-radius:12px;padding:24px 28px;border:1px solid var(--border);display:flex;flex-direction:column;gap:0;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
-          <div style="grid-column:1/-1;"><label class="ts-label">Agency Name</label><input id="profileAgencyName" type="text" readonly class="ts-input" style="margin-top:4px;background:var(--cream2);width:100%;box-sizing:border-box;"></div>
-          <div style="grid-column:1/-1;">
-            <label class="ts-label">Header Colour</label>
-            <div id="headerColourSwatches" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;"></div>
-            <!-- Hidden field saved through profileBrandColorHex id for backward-compat with save flow -->
-            <input id="profileBrandColorHex" type="hidden" value="terracotta">
-            <input id="profileBrandColor" type="hidden" value="terracotta">
+      <div class="banner-progress">
+        <div class="progress-ring" id="mp-progressRing" style="--progress:80%"><span id="mp-progressValue">80%</span></div>
+        <div class="progress-copy"><strong id="mp-progressTitle">Almost there</strong><small id="mp-progressCaption">Add your agency logo to finish setup</small></div>
+      </div>
+    </section>
+
+    <div class="profile-grid">
+      <section class="card identity-card" aria-labelledby="mp-logoHeading">
+        <div class="card-heading">
+          <div><h2 id="mp-logoHeading">Agency logo</h2><p>Make every quote recognisable.</p></div>
+          <span class="tag">CLIENT-FACING</span>
+        </div>
+        <div class="upload-zone" id="mp-uploadZone" role="button" tabindex="0" aria-label="Upload agency logo">
+          <input class="file-input" id="mp-logoInput" type="file" accept="image/png,image/jpeg,image/webp">
+          <div class="upload-content">
+            <span class="upload-icon" aria-hidden="true">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M4 16.5v2A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-2M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <strong>Drop your logo here</strong>
+            <small>or choose an image file<br>PNG, JPG or WEBP · up to 1 MB</small>
           </div>
-          <div><label class="ts-label">Contact Phone</label><input id="profileContactPhone" type="text" placeholder="+91 98765 43210" class="ts-input" style="margin-top:4px;width:100%;box-sizing:border-box;"></div>
-          <div><label class="ts-label">Contact Email</label><input id="profileContactEmail" type="email" placeholder="hello@agency.com" class="ts-input" style="margin-top:4px;width:100%;box-sizing:border-box;"></div>
-          <div><label class="ts-label">Website</label><input id="profileWebsite" type="url" placeholder="https://youragency.com" class="ts-input" style="margin-top:4px;width:100%;box-sizing:border-box;"></div>
+          <img class="logo-preview" id="mp-logoPreview" alt="Agency logo preview">
         </div>
-        <button onclick="saveAgentProfileData()" class="btn-terra" style="align-self:flex-start;padding:10px 32px;">Save Profile</button>
-        <div id="profileSaveMsg" style="font-size:12px;font-weight:600;margin-top:10px;display:none;"></div>
-      </div>
+        <div class="upload-actions">
+          <button class="button secondary" type="button" id="mp-chooseLogo">▧ <span>Choose logo</span></button>
+          <button class="button secondary remove-logo" type="button" id="mp-removeLogo">Remove</button>
+        </div>
+        <div class="identity-divider"></div>
+        <div class="identity-meta">
+          <div class="meta-row">
+            <span class="meta-icon" aria-hidden="true">✉</span>
+            <span class="meta-copy"><small>Client contact</small><strong id="mp-identityEmail">—</strong></span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-icon" aria-hidden="true">↗</span>
+            <span class="meta-copy"><small>Agency website</small><strong id="mp-identityWebsite">—</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <form class="card form-card" id="mp-profileForm">
+        <div class="form-topline">
+          <div><h2>Agency details</h2><p>These details are shown on the travel proposal you send.</p></div>
+          <span class="required-note"><span style="color:var(--terra)">*</span> Required</span>
+        </div>
+        <div class="form-grid">
+          <div class="field full">
+            <label for="mp-agencyName">Agency name <span>*</span></label>
+            <input id="mp-agencyName" name="agencyName" type="text" maxlength="70" autocomplete="organization" required>
+          </div>
+          <div class="field full">
+            <label for="mp-agencyTagline">Agency tagline</label>
+            <input id="mp-agencyTagline" name="agencyTagline" type="text" maxlength="70" placeholder="Optional · add your own tagline">
+            <span class="field-help">Optional · displayed below your agency name on the proposal.</span>
+          </div>
+          <div class="color-field">
+            <div class="color-heading">
+              <span class="field-label">Proposal color</span>
+              <span class="selected-color-label" id="mp-selectedColorLabel">Orange · #C65B2B</span>
+            </div>
+            <div class="color-options" role="group" aria-label="Choose one of seven proposal colors">
+              <button class="swatch" type="button" style="--swatch:#c65b2b" data-color="#c65b2b" aria-label="Orange" aria-pressed="true"></button>
+              <button class="swatch" type="button" style="--swatch:#f2c230" data-color="#f2c230" aria-label="Yellow" aria-pressed="false"></button>
+              <button class="swatch" type="button" style="--swatch:#218653" data-color="#218653" aria-label="Green" aria-pressed="false"></button>
+              <button class="swatch" type="button" style="--swatch:#c62828" data-color="#c62828" aria-label="Red" aria-pressed="false"></button>
+              <button class="swatch" type="button" style="--swatch:#2878b7" data-color="#2878b7" aria-label="Blue" aria-pressed="false"></button>
+              <button class="swatch" type="button" style="--swatch:#24201d" data-color="#24201d" aria-label="Black" aria-pressed="false"></button>
+              <button class="swatch swatch-white" type="button" style="--swatch:#ffffff" data-color="#ffffff" aria-label="White" aria-pressed="false"></button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="mp-contactPhone">Contact phone <span>*</span></label>
+            <input id="mp-contactPhone" name="contactPhone" type="tel" autocomplete="tel" required>
+          </div>
+          <div class="field">
+            <label for="mp-contactEmail">Contact email <span>*</span></label>
+            <input id="mp-contactEmail" name="contactEmail" type="email" autocomplete="email" required>
+          </div>
+          <div class="field full">
+            <label for="mp-website">Agency website</label>
+            <input id="mp-website" name="website" type="url" autocomplete="url">
+            <span class="field-help">Optional · shown as a link on your client-facing proposal.</span>
+          </div>
+        </div>
+        <div class="form-footer">
+          <span class="privacy-note">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 7.5 7 10 4-2.5 7-5.5 7-10V6l-7-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Saved to your TripStore account.
+          </span>
+          <button class="button primary" type="submit"><span aria-hidden="true">✓</span> Save profile</button>
+        </div>
+      <p class="mp-note" id="mp-saveNote" role="status"></p>
+      </form>
+
+      <section class="card preview-card" id="mp-proposalPreview" aria-labelledby="mp-previewHeading">
+        <div class="preview-heading">
+          <div><h2 id="mp-previewHeading">Your quote preview</h2><p>A quick look at your client-facing brand.</p></div>
+          <span class="live-tag">LIVE PREVIEW</span>
+        </div>
+        <div class="proposal-sheet">
+          <div class="proposal-band" id="mp-proposalBand">
+            <div class="proposal-logo" id="mp-proposalLogo">A</div>
+            <div class="proposal-brand-copy">
+              <strong id="mp-previewAgency">Your agency</strong>
+              <small id="mp-previewTagline" hidden></small>
+            </div>
+          </div>
+          <div class="proposal-cover">
+            <div class="cover-copy"><small>Your next story starts here</small><strong>Italy, at your pace</strong></div>
+          </div>
+          <div class="proposal-body">
+            <div class="proposal-route"><span>Rome</span><span class="route-line"></span><span>Florence</span><span class="route-line"></span><span>Venice</span></div>
+            <div class="trip-stops">
+              <div class="trip-stop"><strong>Rome</strong><small>3 nights · Explore</small></div>
+              <div class="trip-stop"><strong>Florence</strong><small>2 nights · Discover</small></div>
+              <div class="trip-stop"><strong>Venice</strong><small>2 nights · Unwind</small></div>
+            </div>
+            <div class="proposal-note"><span aria-hidden="true">＋</span><span>Thoughtfully planned for you by <b id="mp-previewContact">your contact email</b>.</span></div>
+            <div class="proposal-bottom"><span>7 nights · 2 travellers</span><strong>TRIP PROPOSAL · 01</strong></div>
+          </div>
+        </div>
+        <p class="preview-caption">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Your brand color and logo carry through to every quote.
+        </p>
+      </section>
     </div>
-  </div>
+
+    <div class="lower-grid">
+      <section class="card checklist-card" aria-labelledby="mp-checklistHeading">
+        <div class="lower-heading"><h2 id="mp-checklistHeading">Your profile checklist</h2><span>Ready for the next client quote</span></div>
+        <div class="checklist-items">
+          <div class="check-item" id="mp-checkAgency"><span class="check-icon" aria-hidden="true">✓</span><span class="check-copy"><strong>Agency name</strong><small>Appears on every proposal</small></span></div>
+          <div class="check-item pending" id="mp-checkLogo"><span class="check-icon" aria-hidden="true">＋</span><span class="check-copy"><strong>Agency logo</strong><small>Upload for a polished PDF</small></span></div>
+          <div class="check-item" id="mp-checkContact"><span class="check-icon" aria-hidden="true">✓</span><span class="check-copy"><strong>Client contact</strong><small>Phone and email are ready</small></span></div>
+        </div>
+      </section>
+      <aside class="card account-card" aria-labelledby="mp-accountHeading">
+        <div class="lower-heading"><h2 id="mp-accountHeading">Need a hand?</h2><span>We're here to help</span></div>
+        <div class="account-content">
+          <div class="account-copy">
+            <span class="account-icon" aria-hidden="true">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0 1 16 0v5a2 2 0 0 1-2 2h-2v-6h4M4 13h4v6H6a2 2 0 0 1-2-2v-4Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span><strong>Profile or branding questions?</strong><small>Our support team can help you get set up.</small></span>
+          </div>
+          <a class="account-link" href="mailto:__SUPPORT_EMAIL__">Contact support ↗</a>
+        </div>
+      </aside>
+    </div>
+    <footer class="page-footer">
+      <span><strong>Trip Store Agent Workspace</strong> · Your agency details stay yours.</span>
+      <span>Changes are saved to your TripStore account.</span>
+    </footer>
+  </main>
+  <div class="toast" id="mp-toast" role="status" aria-live="polite"></div>
 </div>
 
 <div id="tab-business" style="display:none;flex:1;flex-direction:column;min-height:0;overflow-y:auto;background:var(--cream);">
@@ -4626,6 +5001,7 @@ function selectHeaderColour(key) {
 }
 
 async function loadAgentProfile() {
+    if (typeof tsMpLoad_ === 'function') return tsMpLoad_();   // MY PROFILE: the approved design's loader
     try {
         const res  = await fetch(`${API_URL}?action=getAgentProfile&username=${encodeURIComponent(window.currentUsername || '')}`);
         const data = await res.json();
@@ -15581,5 +15957,205 @@ window.tsCal = (function(){
 })();
 </script>
 <div id="tsCalendarPopup" role="dialog" aria-label="Date picker"></div>
+<script>
+// ── MY PROFILE (agent), the approved design (#274, owner approved the look 19 Nov) wired to the agent's account ─────────────────
+// Reads with getAgentProfile, saves with saveAgentProfile, stores the logo file with uploadAgentLogo (all three exist today).
+// Colours: the app and the client PDF keep the colour as a NAME (HEADER_COLOURS). The design's 7 colours map onto names; Yellow and
+// White are new names (also needed in the PDF palette: listed for CC in the PR). A colour saved earlier that is not one of the 7
+// is kept as it is unless the agent picks one of the 7.
+// Agency name + tagline: sent with the save; until the backend part is on DEV the server keeps them back, and the tab says so.
+// Agency name READ-ONLY for now (owner 20 Nov, D-20NOV-YASH-8 / card E2): some old quotes find their agent by agency name, so a
+// rename would turn a re-made PDF into TripStore branding. The box opens (TS_MP_RENAME_ON = true) once the PDF fix that finds the
+// agent by username (this PR, backend/apply_pdf.js D4) is LIVE. Until then the save does not send the agency name at all.
+var TS_MP_RENAME_ON = false;
+var TS_MP_RENAME_HINT = 'To change your agency name, WhatsApp TripStore for now.';
+var TS_MP_COLOURS = [
+  { key: 'terracotta', hex: '#c65b2b', name: 'Orange' },
+  { key: 'yellow', hex: '#f2c230', name: 'Yellow' },
+  { key: 'green', hex: '#218653', name: 'Green' },
+  { key: 'red', hex: '#c62828', name: 'Red' },
+  { key: 'light_blue', hex: '#2878b7', name: 'Blue' },
+  { key: 'charcoal', hex: '#24201d', name: 'Black' },
+  { key: 'white', hex: '#ffffff', name: 'White' },
+];
+if (typeof HEADER_COLOURS === 'object' && HEADER_COLOURS) {   // the two new names, so the quote preview can show them too
+  if (!HEADER_COLOURS.yellow) HEADER_COLOURS.yellow = { label: 'Yellow', stops: ['#3d2f00', '#7a5d00', '#c99a00', '#f2c230'], badge: '#c99a00' };
+  if (!HEADER_COLOURS.white) HEADER_COLOURS.white = { label: 'White', stops: ['#5c5c5c', '#8a8a8a', '#bdbdbd', '#e6e6e6'], badge: '#8a8a8a' };
+}
+var tsMp = { logoUrl: '', key: 'terracotta', kept: '', loaded: null, wired: false, uploading: false };
+function tsMpEl_(id) { return document.getElementById('mp-' + id); }
+function tsMpRoot_() { return document.getElementById('tab-profile'); }
+function tsMpToast_(msg, isError) {
+  var t = tsMpEl_('toast'); if (!t) return;
+  t.textContent = msg; t.classList.toggle('error', !!isError); t.classList.add('show');
+  clearTimeout(tsMpToast_.t0); tsMpToast_.t0 = setTimeout(function () { t.classList.remove('show'); }, 3600);
+}
+function tsMpColourOfKey_(key) { for (var i = 0; i < TS_MP_COLOURS.length; i++) if (TS_MP_COLOURS[i].key === key) return TS_MP_COLOURS[i]; return null; }
+function tsMpColourOfHex_(hex) { hex = String(hex || '').toLowerCase(); for (var i = 0; i < TS_MP_COLOURS.length; i++) if (TS_MP_COLOURS[i].hex === hex) return TS_MP_COLOURS[i]; return null; }
+
+// the design's own colour maths (setColor), on the tab instead of the page root
+function tsMpPaint_(hex) {
+  var n = String(hex).toLowerCase(), ch = n.slice(1).match(/.{2}/g).map(function (c) { return parseInt(c, 16); });
+  var lum = ch.map(function (c) { var v = c / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
+    .reduce(function (t, v, i) { return t + v * [0.2126, 0.7152, 0.0722][i]; }, 0);
+  var mix = function (a) { return '#' + ch.map(function (c) { return Math.round(c * (1 - a) + 255 * a).toString(16).padStart(2, '0'); }).join(''); };
+  var dark = function (a) { return '#' + ch.map(function (c) { return Math.round(c * (1 - a)).toString(16).padStart(2, '0'); }).join(''); };
+  var light = lum > 0.52, white = n === '#ffffff';
+  var start = n === '#c65b2b' ? '#32190f' : light ? (white ? '#e6e6e6' : mix(0.2)) : dark(0.3);
+  var r = tsMpRoot_().style;
+  r.setProperty('--brand-color', n); r.setProperty('--brand-start', start);
+  r.setProperty('--brand-mid', white ? '#dedede' : mix(0.35));
+  r.setProperty('--brand-ink', light ? '#24201d' : start); r.setProperty('--brand-text', light ? '#24201d' : '#fff');
+  r.setProperty('--brand-tint', white ? '#eaeaea' : mix(0.78)); r.setProperty('--brand-soft', white ? '#f5f5f5' : mix(0.93));
+  r.setProperty('--brand-border', white ? '#b8b8b8' : light ? dark(0.3) : mix(0.58));
+}
+function tsMpSetColour_(key) {
+  var c = tsMpColourOfKey_(key);
+  tsMp.key = key;
+  var lab = tsMpEl_('selectedColorLabel');
+  if (c) { tsMpPaint_(c.hex); if (lab) lab.textContent = c.name + ' · ' + c.hex.toUpperCase(); }
+  else {   // a colour saved earlier that is not one of the 7: kept, the preview shows it in the app's own palette
+    var p = (typeof HEADER_COLOURS === 'object' && HEADER_COLOURS[key]) || null;
+    tsMpPaint_(p ? p.badge : (/^#[0-9a-f]{6}$/i.test(key) ? key : '#c65b2b'));
+    if (lab) lab.textContent = 'Current: ' + (p ? p.label : key) + ' · kept unless you pick one below';
+  }
+  document.querySelectorAll('#tab-profile .swatch').forEach(function (s) { s.setAttribute('aria-pressed', String(!!c && s.dataset.color === c.hex)); });
+}
+function tsMpVal_(id) { var e = tsMpEl_(id); return e ? e.value.trim() : ''; }
+function tsMpUpdatePreview_() {
+  var name = tsMpVal_('agencyName') || 'Your agency', tag = tsMpVal_('agencyTagline'), email = tsMpVal_('contactEmail');
+  tsMpEl_('previewAgency').textContent = name;
+  var pt = tsMpEl_('previewTagline'); pt.textContent = tag; pt.hidden = !tag;
+  tsMpEl_('previewContact').textContent = email || 'your contact email';
+  tsMpEl_('identityEmail').textContent = email || '—';
+  var site = tsMpVal_('website').replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  tsMpEl_('identityWebsite').textContent = site || 'Add your website';
+  if (!tsMp.logoUrl) tsMpEl_('proposalLogo').textContent = name.charAt(0).toUpperCase();
+  tsMpUpdateProgress_();
+}
+function tsMpUpdateProgress_() {
+  var hasName = !!tsMpVal_('agencyName'), hasContact = !!(tsMpVal_('contactPhone') && tsMpVal_('contactEmail')), hasLogo = !!tsMp.logoUrl;
+  var done = [hasName, hasLogo, hasContact].filter(Boolean).length, pct = Math.round(done / 3 * 100);
+  tsMpEl_('progressRing').style.setProperty('--progress', pct + '%');
+  tsMpEl_('progressValue').textContent = pct + '%';
+  tsMpEl_('progressTitle').textContent = pct === 100 ? 'Profile ready' : 'Almost there';
+  tsMpEl_('progressCaption').textContent = pct === 100 ? 'Your agency details are quote-ready' : !hasLogo ? 'Add your agency logo to finish setup' : 'Fill in the required details to finish setup';
+  [['checkAgency', hasName], ['checkLogo', hasLogo], ['checkContact', hasContact]].forEach(function (x) {
+    var el = tsMpEl_(x[0]); el.classList.toggle('pending', !x[1]); el.querySelector('.check-icon').textContent = x[1] ? '✓' : '＋';
+  });
+  tsMpEl_('checkLogo').querySelector('small').textContent = hasLogo ? 'Included in your quote preview' : 'Upload for a polished PDF';
+}
+function tsMpSetLogo_(url) {
+  tsMp.logoUrl = url || '';
+  var zone = tsMpEl_('uploadZone'), prev = tsMpEl_('logoPreview'), pl = tsMpEl_('proposalLogo');
+  if (tsMp.logoUrl) {
+    prev.src = tsMp.logoUrl; zone.classList.add('has-logo');
+    var img = document.createElement('img'); img.src = tsMp.logoUrl; img.alt = ''; pl.replaceChildren(img);
+  } else {
+    prev.removeAttribute('src'); zone.classList.remove('has-logo');
+    pl.textContent = (tsMpVal_('agencyName').charAt(0) || 'A').toUpperCase();
+  }
+  tsMpUpdateProgress_();
+}
+// the old tab's way, kept as the fallback when the file upload fails: a 200 px JPEG kept in the profile itself
+function tsMpSmallJpeg_(dataUrl) {
+  return new Promise(function (res, rej) {
+    var im = new Image();
+    im.onload = function () { var r = Math.min(200 / im.width, 200 / im.height, 1), c = document.createElement('canvas');
+      c.width = Math.round(im.width * r); c.height = Math.round(im.height * r); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.75)); };
+    im.onerror = rej; im.src = dataUrl;
+  });
+}
+async function tsMpReadLogo_(file) {
+  if (!file) return;
+  if (['image/png', 'image/jpeg', 'image/webp'].indexOf(file.type) < 0) return tsMpToast_('Choose a PNG, JPG, or WEBP image.', true);
+  if (file.size > 1024 * 1024) return tsMpToast_('That image is over 1 MB. Choose a smaller logo file.', true);
+  var dataUrl = await new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = rej; r.readAsDataURL(file); })
+    .catch(function () { return ''; });
+  if (!dataUrl) return tsMpToast_('The logo could not be read. Please try another image.', true);
+  tsMpSetLogo_(dataUrl);   // shown at once; the stored link replaces it below
+  tsMp.uploading = true;
+  try {
+    var res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'uploadAgentLogo', username: window.currentUsername || '',
+      filename: (file.name || 'logo').replace(/[^\w.-]/g, '_').slice(0, 60), mimeType: file.type, base64data: String(dataUrl).split(',')[1] || '' }) });
+    var d = await res.json();
+    if (d && (d.success || d.ok) && d.url) { tsMpSetLogo_(d.url); tsMpToast_('Logo ready. Save your profile to use it on your quotes.'); }
+    else throw new Error((d && d.error) || 'upload');
+  } catch (e) {
+    try { tsMpSetLogo_(await tsMpSmallJpeg_(dataUrl)); tsMpToast_('Logo ready (kept small). Save your profile to use it on your quotes.'); }
+    catch (e2) { tsMpSetLogo_(''); tsMpToast_('The logo could not be stored. Please try again.', true); }
+  } finally { tsMp.uploading = false; }
+}
+async function tsMpLoad_() {
+  tsMpWire_();
+  try {
+    var res = await fetch(API_URL + '?action=getAgentProfile&username=' + encodeURIComponent(window.currentUsername || ''));
+    var d = await res.json() || {};
+    tsMp.loaded = d;
+    tsMpEl_('agencyName').value = d.agencyName || ''; tsMpEl_('agencyTagline').value = d.agencyTagline || '';
+    tsMpRenameLock_();
+    tsMpEl_('contactPhone').value = d.contactPhone || ''; tsMpEl_('contactEmail').value = d.contactEmail || '';
+    tsMpEl_('website').value = d.website || '';
+    tsMpSetColour_(d.brandColor || 'terracotta');
+    tsMpSetLogo_(d.logoUrl || '');
+    tsMpEl_('saveNote').classList.remove('on');
+    tsMpUpdatePreview_();
+  } catch (e) { tsMpToast_('Could not load your profile. Please try again.', true); }
+}
+async function tsMpSave_(ev) {
+  if (ev) ev.preventDefault();
+  var form = tsMpEl_('profileForm');
+  if (!form.reportValidity()) return;
+  if (tsMp.uploading) return tsMpToast_('The logo is still uploading. Save again in a moment.', true);
+  var p = { logoUrl: tsMp.logoUrl, brandColor: tsMp.key, contactPhone: tsMpVal_('contactPhone'), contactEmail: tsMpVal_('contactEmail'),
+    website: tsMpVal_('website'), agencyTagline: tsMpVal_('agencyTagline') };
+  if (TS_MP_RENAME_ON) p.agencyName = tsMpVal_('agencyName');   // read-only for now: never sent
+  var btn = form.querySelector('button[type=submit]'); if (btn) btn.disabled = true;
+  try {
+    var res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveAgentProfile', username: window.currentUsername || '', profile: p }) });
+    var d = await res.json();
+    if (!(d && (d.success || d.ok))) throw new Error((d && (d.message || d.error)) || 'save');
+    var was = tsMp.loaded || {}, held = [];
+    if (!d.saved) {   // a server without the build part keeps these back: say so, never pretend
+      if ('agencyName' in p && p.agencyName !== (was.agencyName || '')) held.push('agency name');
+      if (p.agencyTagline !== (was.agencyTagline || '')) held.push('tagline');
+    }
+    var note = tsMpEl_('saveNote');
+    note.textContent = held.length ? 'Saved, except the ' + held.join(' and ') + ': changing ' + (held.length > 1 ? 'these is' : 'this is') + ' not switched on yet. Your other details are saved.' : '';
+    note.classList.toggle('on', held.length > 0);
+    tsMp.loaded = Object.assign({}, was, p, held.indexOf('agency name') >= 0 ? { agencyName: was.agencyName } : {}, held.indexOf('tagline') >= 0 ? { agencyTagline: was.agencyTagline } : {});
+    tsMpToast_('Profile saved. Your quote preview is up to date.');
+    try { if (typeof applyHeaderColourToPreview === 'function') applyHeaderColourToPreview(tsMp.key); } catch (e) {}
+    try {   // as today's tab: the quote preview's logo follows at once (applyAgentBranding is not re-run: it would open the logo prompt)
+      if (window.currentRole === 'AGENT') { var ql = document.getElementById('quoteLogo'), fb = document.getElementById('quoteLogoFallback');
+        if (ql && p.logoUrl) { ql.src = p.logoUrl; ql.style.display = 'block'; if (fb) fb.style.display = 'none'; } }
+    } catch (e) {}
+  } catch (e) { tsMpToast_('Could not save your profile. Please try again.', true); }
+  finally { if (btn) btn.disabled = false; }
+}
+function tsMpRenameLock_() {   // agency name read-only while TS_MP_RENAME_ON is false, with a one-line hint under the box
+  var n = tsMpEl_('agencyName'); if (!n) return;
+  n.readOnly = !TS_MP_RENAME_ON; n.setAttribute('aria-readonly', String(!TS_MP_RENAME_ON));
+  var h = document.getElementById('mp-agencyNameHint');
+  if (!TS_MP_RENAME_ON && !h) { h = document.createElement('small'); h.id = 'mp-agencyNameHint'; h.className = 'mp-hint'; h.style.cssText = 'display:block;margin-top:5px;font-size:12px;line-height:1.4;color:#6b7280;'; h.textContent = TS_MP_RENAME_HINT; n.insertAdjacentElement('afterend', h); }
+  if (h) h.style.display = TS_MP_RENAME_ON ? 'none' : 'block';
+  n.style.background = TS_MP_RENAME_ON ? '' : '#f3f4f6'; n.style.cursor = TS_MP_RENAME_ON ? '' : 'default';
+}
+function tsMpWire_() {
+  if (tsMp.wired || !tsMpEl_('profileForm')) return; tsMp.wired = true;
+  document.querySelectorAll('#tab-profile .swatch').forEach(function (s) { s.addEventListener('click', function () { var c = tsMpColourOfHex_(s.dataset.color); if (c) tsMpSetColour_(c.key); }); });
+  ['agencyName', 'agencyTagline', 'contactPhone', 'contactEmail', 'website'].forEach(function (id) { tsMpEl_(id).addEventListener('input', tsMpUpdatePreview_); });
+  var input = tsMpEl_('logoInput'), zone = tsMpEl_('uploadZone');
+  tsMpEl_('chooseLogo').addEventListener('click', function () { input.click(); });
+  zone.addEventListener('click', function (e) { if (e.target !== input) input.click(); });
+  zone.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  input.addEventListener('change', function (e) { tsMpReadLogo_(e.currentTarget.files[0]); e.currentTarget.value = ''; });
+  tsMpEl_('removeLogo').addEventListener('click', function () { tsMpSetLogo_(''); });
+  ['dragenter', 'dragover'].forEach(function (t) { zone.addEventListener(t, function (e) { e.preventDefault(); zone.classList.add('dragover'); }); });
+  ['dragleave', 'drop'].forEach(function (t) { zone.addEventListener(t, function (e) { e.preventDefault(); zone.classList.remove('dragover'); }); });
+  zone.addEventListener('drop', function (e) { tsMpReadLogo_(e.dataTransfer.files[0]); });
+  tsMpEl_('profileForm').addEventListener('submit', tsMpSave_);
+}
+</script>
 </body>
 </html>
