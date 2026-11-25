@@ -14510,7 +14510,7 @@ function todo(pages, all) {
       put(k, { hotels: hN, tours: sN, transfers: xN, trains: tN, transfersV3: v3 ? (v3[c] || 0) : null }, 'Rows for ' + c + ' in each master: hotels, tours, transfers (' + (v3 ? 'Transfers_v3 = the engine\'s tab' : 'Transfers tab') + '), train / ferry routes from or to it.', 'masters (getCatalogueStats)',
         ['Master', 'Rows', 'What is missing'], [['Hotels', hN, hN ? '' : 'no hotel to price'], ['Tours', sN, sN ? '' : 'no tour to price'], ['Transfers', xN, xN ? '' : 'airport / station transfers = Price on request'], ['Train / ferry routes', tN, '']].concat(v3 ? [['Transfers_v3 (engine)', v3[c] || 0, '']] : []));
       v2_ready.push([k, country, c, hN, sN, xN, tN, gaps]); }));
-    return { lists: L, top_routes: top_routes, rate_dates: rate_dates, v2: { m: m, v2_link_month: v2_link_month, v2_por_cities: v2_por_cities, v2_por_note: Object.keys(last).length + ' saved quotes with a quote id; ' + por.length + ' cities with 10+ saved quotes', v2_ready: v2_ready } };
+    return { lists: L, top_routes: top_routes, rate_dates: rate_dates, v2: { m: m, v2_link_month: v2_link_month, v2_por_cities: v2_por_cities, v2_por_note: 'all ' + Object.keys(last).length + ' saved quotes with a quote id, as of today; ' + por.length + ' cities with 10+ saved quotes', v2_ready: v2_ready } };
   }
   const api = { compute: compute, data: data, pyRound: pyRound };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.C6DataCompute = api;
@@ -14826,8 +14826,8 @@ function todo(pages, all) {
     const auGap = V.v2_ready.filter(r => r[1] === 'Australia' && r[7].length);
     const TODO = [
       ['d', 'v2_link_saved', `${inr(ls.n)} of ${inr(ls.of)} quotes found in Saved_Itineraries`, 'CC: join gap', L.i207],
-      ['d', 'v2_link_blank', `${inr(M.v2_link_blank.v.n)} saved rows with no quote id`, 'CC', L.i207],
-      ['d', por1 && por1[0], por1 ? `"Price on request" on ${pct(por1[2], por1[3])} of saved ${por1[1]} quotes` : '', 'CC: Transfers_v3 check', L.swiss],
+      ['d', 'v2_link_blank', `${inr(M.v2_link_blank.v.n)} saved rows with no quote id (all rows, as of today)`, 'CC', L.i207],
+      ['d', por1 && por1[0], por1 ? `"Price on request" on ${pct(por1[2], por1[3])} of the ${inr(por1[3])} saved ${por1[1]} quotes (all saved quotes, as of today)` : '', 'CC: Transfers_v3 check', L.swiss],
       ['d', 'v2_rate_age', `Newest hotel rate ${ra.newest} (${inr(ra.days)} days old ${opts.ageWhen})`, 'to assign', L.none],
       ['d', 'v2_tour_id_high', `${inr(M.v2_tour_id_high.v.n)} of ${inr(M.v2_tour_id_high.v.of)} tours have a high-confidence ID`, 'to assign', L.none],
       ['d', 'v2_viator_sync', opts.viatorText, 'CC: add the columns', L.card],
@@ -14840,8 +14840,8 @@ function todo(pages, all) {
     const por = V.v2_por_cities.map(([k, c, n, of]) => `<div class="v2-bar" data-c6="${k}" data-title="Price on request: ${esc(c)}"><span class="v2-bl">${esc(c)}</span><span class="v2-bt"><span class="v2-bf v2-fill" style="width:${Math.round(n / of * 100)}%"></span></span><b>${pct(n, of)}</b><em>${inr(n)} of ${inr(of)}</em></div>`).join('');
     const w3 = head('v2-h-data', '!', 'Current reality and data quality', 'Can one quote be followed through every log, and is the catalogue right: tour IDs, hotel rates, lines with no price.') + `<div class="v2-grid v2-g2">` +
       card('v2-c-sky', '🔗', 'One quote id across the logs', 'Quote_Log has a "Quote ID" column. Every saved quote should also be in Saved_Itineraries; only quotes that got a PDF are in the PDF log.',
-        `<div class="v2-tiles v2-t4">${lk('v2_link_saved', 'found in Saved_Itineraries', 'every saved quote should be here', 1)}${lk('v2_link_pdf', 'found in the PDF log', 'only quotes that got a PDF', 0)}${lk('v2_link_all3', 'found in all three logs', 'Quote_Log + Saved + PDF log', 0)}${lk('v2_link_blank', 'saved rows with no quote id', 'Saved_Itineraries rows', 1)}</div>` +
-        `<div class="v2-sub">Found in Saved_Itineraries, by month logged <small>(is the gap old or still happening?)</small></div>` + pbars(V.v2_link_month.map(([k, lab]) => [k, lab, 'Quotes logged in ' + lab + ' found in Saved_Itineraries']), 'v2-spread'),
+        `<div class="v2-tiles v2-t4">${lk('v2_link_saved', 'found in Saved_Itineraries', 'every saved quote should be here', 1)}${lk('v2_link_pdf', 'found in the PDF log', 'only quotes that got a PDF', 0)}${lk('v2_link_all3', 'found in all three logs', 'Quote_Log + Saved + PDF log', 0)}${lk('v2_link_blank', 'saved rows with no quote id · all rows, as of today', 'Saved_Itineraries rows', 1)}</div>` +
+        `<div class="v2-sub">Found in Saved_Itineraries, by month logged <small>(the quotes of the last ⟦N⟧ days; is the gap old or still happening?)</small></div>` + pbars(V.v2_link_month.map(([k, lab]) => [k, lab, 'Quotes logged in ' + lab + ' found in Saved_Itineraries']), 'v2-spread'),
         opts.srcLink) +
       card('v2-c-amber', '🔍', 'Data quality', "Tours on the right ID, how fresh hotel rates are, and how often a city's quotes carry a line with no price.",
         `<div class="v2-tiles v2-t3">${lk('v2_tour_id_high', 'tours with a high-confidence ID', 'tours master', 1)}${lk('v2_tour_id_any', 'tours with any ID', 'tours master, all lines', 1)}` +
@@ -14916,9 +14916,15 @@ function _tsBizSize_(e) {
     if (!fr || e.source !== fr.contentWindow || !e.data || typeof e.data.c6h !== 'number' || !(e.data.c6h > 0)) return;
     fr.style.minHeight = window.innerWidth <= 900 ? Math.min(Math.round(e.data.c6h), 20000) + 'px' : '';
 }
-async function _tsBizGet_(action) {
-    try { const r = await fetch(`${API_URL}?action=${action}`); return await r.json(); }
-    catch (e) { return { ok: false, error: 'no_answer' }; }
+const TS_BIZ_LIMIT_MS = 20000;   // ONE request may take at most this long, then the page says so and keeps what it has. The page-wide retry (30 s a try, 2 retries) is bypassed with _tsNoRetry.
+const TS_BIZ_LIMIT_CAT_MS = 30000;   // the catalogue read (Data view) is the largest answer (17 s measured on the test site on 25 Nov), so it gets longer
+async function _tsBizGet_(action, limitMs) {   // -> the reply; { ok: false, error: 'timeout' | 'no_answer', after: <ms> } when none came; a refused login comes back as { error: 'forbidden', code: 403 }
+    const lim = limitMs || TS_BIZ_LIMIT_MS, ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    let timer = null, timedOut = false;
+    if (ctl) timer = setTimeout(() => { timedOut = true; ctl.abort(); }, lim);
+    try { const r = await fetch(`${API_URL}?action=${action}`, { _tsNoRetry: true, signal: ctl ? ctl.signal : undefined }); return await r.json(); }
+    catch (e) { return { ok: false, error: timedOut ? 'timeout' : 'no_answer', after: lim }; }
+    finally { if (timer) clearTimeout(timer); }
 }
 async function _tsBizHash_(s) {   // = the backend's _c6Hash_: first 6 bytes of SHA-256('c6:' + username), hex
     const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('c6:' + s));
@@ -14935,8 +14941,11 @@ function tsBizShow(view) {   // the Business / Quote switch in the tab's bar: re
 async function _tsBizCatalogue_() {   // the catalogue is the largest answer: read only when the Data page is opened (and on Refresh while on it)
     const st = document.getElementById('businessStatus'), d = _tsBizData; if (!d) return;
     if (st) st.textContent = 'Reading the catalogue…';
-    const c = await _tsBizGet_('getCatalogueStats');
-    if (_tsBizData === d) { d.src.catalogue = c; _tsBizDraw_(); }
+    const c = await _tsBizGet_('getCatalogueStats', TS_BIZ_LIMIT_CAT_MS);
+    if (_tsBizData === d) {
+        d.catFail = _tsBizFailText_([c]);
+        d.src.catalogue = c; _tsBizDraw_();
+    }
 }
 let _tsBizWin = C6Windows.DEFAULT;   // ONE period for the whole tab: last 7 / 14 / 30 days, default 7
 function _tsBizSelUi_() {   // the selector sits beside the Business / Quote / Data buttons; built here so it shows at once, before any number has arrived
@@ -14971,11 +14980,74 @@ function _tsBizDraw_() {
         const html = _tsBizHtml_(_tsBizView, d), O = d.O;
         const cut = html.lastIndexOf('</body>');
         fr.srcdoc = html.slice(0, cut) + TS_BIZ_SIZE + html.slice(cut);
-        st.textContent = (_tsBizView === 'quote' ? 'Quote' : _tsBizView === 'data' ? 'Data' : 'Business') + ' · last ' + O.win[0].n + ' days: ' + O.win[0].range + ' · read at ' + d.readAt + ' IST';
+        st.textContent = _tsBizStatusText_(d);
+        return true;
     } catch (e) {
         st.textContent = 'Could not draw the page (' + (e && e.message || e) + '). Press Refresh.';
+        return false;
     }
 }
+function _tsBizStamp_(ms) { const x = new Date(ms + 330 * 60000); return x.getUTCDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][x.getUTCMonth()] + ', ' + x.toISOString().slice(11, 16) + ' IST'; }
+function _tsBizFailText_(reps) {   // '' when every reply came; else why not (no answer in N s / no answer / login expired)
+    const bad = reps.filter((r) => r && !Array.isArray(r) && ((r.ok === false && (r.error === 'timeout' || r.error === 'no_answer')) || r.error === 'forbidden' || r.code === 403));
+    if (!bad.length) return '';
+    if (bad.some((r) => r.error === 'forbidden' || r.code === 403)) return 'your login has expired. Please log in again.';
+    const to = bad.find((r) => r.error === 'timeout');
+    return (to ? 'no answer in ' + Math.round((to.after || TS_BIZ_LIMIT_MS) / 1000) + ' s' : 'no answer') + '. Press Refresh.';
+}
+function _tsBizStatusText_(d) {
+    const O = d.O, v = _tsBizView === 'quote' ? 'Quote' : _tsBizView === 'data' ? 'Data' : 'Business';
+    let s = v + ' · last ' + O.win[0].n + ' days: ' + O.win[0].range;
+    if (d.fromSaved) s += ' · saved numbers from ' + _tsBizStamp_(d.at) + (d.note ? ' · ' + d.note : ' · refreshing…');
+    else s += ' · read at ' + d.readAt + ' IST' + (d.note ? ' · ' + d.note : '');
+    if (d.catFail && _tsBizView === 'data') s += ' · catalogue counts could not be read: ' + d.catFail;
+    return s;
+}
+function _tsBizPlace_(title, line) {   // a plain page in the frame (first visit, expired login): never a blank frame. System fonts, inline colours.
+    const fr = document.getElementById('businessFrame'); if (!fr) return;
+    fr.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#faf7f2;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#2b2420"><div style="max-width:460px;margin:120px auto;padding:0 24px;text-align:center"><div style="font-size:20px;font-weight:700;margin-bottom:10px">' + title + '</div><div style="font-size:14px;line-height:1.6;color:#6b6159">' + line + '</div></div></body></html>';
+}
+// ---- the saved numbers: the last good read is kept in THIS browser for THIS signed-in admin, drawn at once on the next visit, then refreshed ----
+const TS_BIZ_SAVED_KEY = 'tsBizSaved_v2';
+// ALLOW-LIST (stage 7b, BRAIN 25 Nov): what the browser keeps is built from these fields ONLY. A field the server adds tomorrow is NOT kept until someone adds it here. 1 = keep the value whole; an object = keep only those fields
+// (arrays: each element). Nothing that identifies or contacts a person is on the list: not full name, mobile, e-mail, agency, pax name, owner, phone, wallet balance. The agent's login name stays (the admin sees it on the page).
+const TS_BIZ_KEEP = {
+    quotes: { ok: 1, error: 1, rows: { id: 1, a: 1, staff: 1, at: 1, tm: 1, ad: 1, ch: 1, tp: 1, cities: 1, nights: 1, nc: 1, hn: 1, sn: 1, tn: 1, trn: 1, mkp: 1, mka: 1, gst: 1, gt: 1, be: 1, ut: 1, bf: 1, hm: 1, sm: 1, im: 1, cat: 1, out: 1 } },
+    agents: { username: 1, role: 1, signedUpAt: 1, signedUpColumn: 1 },
+    wallet: { ok: 1, error: 1, rows: 1, weeks: 1 },
+    pdf: { ok: 1, error: 1, rows: 1, days: 1, quoteIds: 1 },
+    saved: { ok: 1, error: 1, rows: 1, noQuoteId: 1, quotes: { quoteId: 1, savedAt: 1, unpricedLines: 1, emptyDays: 1, dayTours: 1, route: 1 } }
+};
+function _tsBizPick_(x, schema) {
+    if (schema === 1) return x;
+    if (Array.isArray(x)) return x.map((e) => _tsBizPick_(e, schema));
+    if (!x || typeof x !== 'object') return x;
+    const o = {}; Object.keys(schema).forEach((k) => { if (x[k] !== undefined) o[k] = _tsBizPick_(x[k], schema[k]); }); return o;
+}
+function _tsBizReduce_(src) {   // the answers cut down to the allow-list (a failed answer stays a failed answer)
+    const o = {}; Object.keys(TS_BIZ_KEEP).forEach((k) => { o[k] = src[k] === undefined || src[k] === null ? src[k] : _tsBizPick_(src[k], TS_BIZ_KEEP[k]); }); return o;
+}
+function _tsBizWho_() { try { const s = JSON.parse(localStorage.getItem('tripstore_session') || '{}'); return s && s.username && s.token ? String(s.username).trim().toLowerCase() : ''; } catch (e) { return ''; } }
+function _tsBizSavedDrop_() { try { localStorage.removeItem(TS_BIZ_SAVED_KEY); } catch (e) { /* nothing to drop */ } }
+function _tsBizSavedGet_() {   // this admin's saved numbers, or null; a copy that is not the signed-in admin's is dropped on the spot
+    try {
+        const raw = localStorage.getItem(TS_BIZ_SAVED_KEY); if (!raw) return null;
+        const c = JSON.parse(raw), who = _tsBizWho_();
+        if (!who || String(window.currentRole || '').toUpperCase() !== 'ADMIN' || !c || c.v !== 1 || c.user !== who || !(c.at > 0) || !c.src || typeof c.src !== 'object') { _tsBizSavedDrop_(); return null; }
+        return c;
+    } catch (e) { _tsBizSavedDrop_(); return null; }
+}
+function _tsBizSavedPut_(d) {   // -> '' when kept, else the reason (shown on the status line). The catalogue is never kept: it is large and has its own call.
+    try { localStorage.setItem(TS_BIZ_SAVED_KEY, JSON.stringify({ v: 1, user: _tsBizWho_(), at: d.at, src: _tsBizReduce_(d.src), names: d.names })); return ''; }
+    catch (e) { _tsBizSavedDrop_(); return 'not saved in this browser'; }
+}
+(function () {   // stage 7's copy (key v1) held the WHOLE agent answer (full name, mobile, e-mail): it is dropped on sight, once and for all
+    try { localStorage.removeItem('tsBizSaved_v1'); } catch (e) { /* nothing to drop */ }
+})();
+(function () {   // on every page load: a saved copy that is not the signed-in admin's (signed out, or another person) is dropped; and a logout drops it too
+    try { const r = JSON.parse(localStorage.getItem(TS_BIZ_SAVED_KEY) || 'null'), w = _tsBizWho_(); if (r && (!w || r.user !== w)) _tsBizSavedDrop_(); } catch (e) { _tsBizSavedDrop_(); }
+    try { const o = window.handleLogout; if (typeof o === 'function') window.handleLogout = function () { _tsBizSavedDrop_(); return o.apply(this, arguments); }; } catch (e) { /* the check above drops it on the next load */ }
+})();
 async function loadBusinessDashboard(force) {
     const fr = document.getElementById('businessFrame'), st = document.getElementById('businessStatus');
     if (!fr || !st) return;
@@ -14983,19 +15055,37 @@ async function loadBusinessDashboard(force) {
     if (!force && _tsBizAt && Date.now() - _tsBizAt < 60000) return;
     if (_tsBizBusy) return _tsBizBusy;
     if (!_tsBizSized) { window.addEventListener('message', _tsBizSize_); _tsBizSized = true; }
-    st.textContent = 'Reading the numbers…'; _tsBizSelUi_();
+    _tsBizSelUi_();
+    if (!_tsBizData) {   // the first open in this page load: the saved numbers AT ONCE, or an honest placeholder; a saved draw does not set _tsBizAt, so the refresh below always runs
+        const c = _tsBizSavedGet_();
+        if (c) {
+            _tsBizData = { src: c.src, names: c.names || {}, at: c.at, readAt: _tsBizStamp_(c.at), now: new Date(c.at), fromSaved: true };
+            if (!_tsBizDraw_()) { _tsBizSavedDrop_(); _tsBizData = null; }
+        }
+        if (!_tsBizData) { st.textContent = 'Reading the numbers…'; _tsBizPlace_('Reading the numbers…', 'The first read can take a few seconds. The next time you open this page it shows the last numbers at once, then updates them.'); }
+    } else { _tsBizData.note = ''; st.textContent = 'Reading the numbers…'; }
     _tsBizBusy = (async () => {
+        const had = _tsBizData;   // the numbers on screen while this read runs (saved or earlier), if any
         try {
-            const [quotes, agents, wallet, pdf, saved] = await Promise.all(TS_BIZ_CALLS.map(_tsBizGet_));
+            const reps = await Promise.all(TS_BIZ_CALLS.map((a) => _tsBizGet_(a)));   // not .map(_tsBizGet_): map would hand the index in as the time limit
+            const [quotes, agents, wallet, pdf, saved] = reps, fail = _tsBizFailText_(reps);
+            if (reps.some((r) => r && !Array.isArray(r) && (r.error === 'forbidden' || r.code === 403))) {   // the login is no longer good: nothing is kept, nothing is shown
+                _tsBizSavedDrop_(); _tsBizData = null; _tsBizAt = 0;
+                st.textContent = 'Your login has expired. Please log in again.'; _tsBizPlace_('Your login has expired', 'Please log in again to see the numbers.'); return;
+            }
+            if (fail && had) { had.note = 'could not refresh (' + fail.replace(/\. Press Refresh\.$/, '') + '). Press Refresh.'; st.textContent = _tsBizStatusText_(had); return; }   // the saved numbers stay on screen
             const names = {};
             if (Array.isArray(agents) && window.crypto && crypto.subtle) for (const a of agents) { const u = String((a && a.username) || '').trim(); if (u) names[await _tsBizHash_(u.toLowerCase())] = u; }
-            const ist = new Date(Date.now() + 330 * 60000);
-            _tsBizData = { src: { quotes, agents: Array.isArray(agents) ? agents : null, wallet, pdf, saved }, names, readAt: ist.toISOString().slice(11, 16), now: new Date() };
-            _tsBizAt = Date.now();
+            const nowMs = Date.now(), ist = new Date(nowMs + 330 * 60000);
+            const d = { src: { quotes, agents: Array.isArray(agents) ? agents : null, wallet, pdf, saved }, names, at: nowMs, readAt: ist.toISOString().slice(11, 16), now: new Date(nowMs) };
+            if (fail) d.note = 'some numbers could not be read (' + fail.replace(/\. Press Refresh\.$/, '') + '). Press Refresh.';   // nothing saved before: draw what came, say what did not
+            else { const why = _tsBizSavedPut_(d); if (why) d.note = why; }
+            _tsBizData = d; _tsBizAt = fail ? 0 : nowMs;
             if (_tsBizView === 'data') { await _tsBizCatalogue_(); return; }
             _tsBizDraw_();
         } catch (e) {
             st.textContent = 'Could not read the numbers (' + (e && e.message || e) + '). Press Refresh.';
+            if (!_tsBizData) _tsBizPlace_('Could not read the numbers', 'Press Refresh to try again.');
         } finally { _tsBizBusy = null; }
     })();
     return _tsBizBusy;
