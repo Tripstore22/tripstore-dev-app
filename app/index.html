@@ -11721,7 +11721,7 @@ async function computeFrontendHash(payload) {
     // computePayloadHash_ strips BOTH identically; the two hashes MUST stay in lockstep.
     const _src = payload || {};
     const _forHash = {};
-    Object.keys(_src).forEach(function(k){ if (k !== 'genId' && k !== 'grandTotal' && k !== 'enhancerSnapshot' && k !== 'selfDriveResult' && k !== 'budgetPerPerson' && k !== 'addOns') _forHash[k] = _src[k]; });   // addOns: lockstep with computePayloadHash_ (Code.gs)
+    Object.keys(_src).forEach(function(k){ if (k !== 'genId' && k !== 'grandTotal' && k !== 'enhancerSnapshot' && k !== 'selfDriveResult' && k !== 'addOns') _forHash[k] = _src[k]; });   // FP-PAIR (25 Nov): the five keys left out are the same five as computePayloadHash_; budgetPerPerson is plan content and stays IN the hash on both sides;   // addOns: lockstep with computePayloadHash_ (Code.gs)
     const canonical = _canonicalJsonFE(_forHash);
     const buf = new TextEncoder().encode(canonical);
     const digest = await crypto.subtle.digest('SHA-256', buf);
