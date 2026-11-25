@@ -14328,7 +14328,7 @@ function todo(pages, all) {
     o.legs_total = pairs.reduce((s, p) => s + p[2], 0); o.legs_with_train = pairs.filter((p) => p[3]).reduce((s, p) => s + p[2], 0);
     o.leg_pairs = pairs.length; o.leg_pairs_with_train = pairs.filter((p) => p[3]).length;
     o.top_legs = pairs.slice(0, 6).map((p) => [p[0], p[1], p[2], p[3]]);
-    const tcount = (c) => T.filter((r) => r[1] === c || r[2] === c).length, xcount = (c) => X.filter((r) => r[0] === c).length;
+    const tcount = (c) => T.filter((r) => r[1] === c || r[2] === c).length, xcount = (c) => (cat.transfersV3 ? (cat.transfersV3[c] || 0) : X.filter((r) => r[0] === c).length);   // B5: the engine's tab when it is loaded (D-25NOV, F11)
     o.top12_catalogue = top12.map((c) => [c, hc.get(c), sc.get(c), tcount(c), xcount(c), cityq.get(c)]);
     o.no_train_legs = pairs.filter((p) => !p[3]).slice(0, 10).map((p) => [p[0], p[1], p[2]]);
     o.no_train_leg_quotes = pairs.filter((p) => !p[3]).reduce((s, p) => s + p[2], 0);
@@ -14361,7 +14361,7 @@ function todo(pages, all) {
     L.d_tile_routes = { cols: ['City', 'Routes from or to it'], rows: rcn.common() };
     L.d_tile_transfers = { cols: ['City', 'Transfer rows', 'Active'], rows: cc(X.map((r) => r[0])).common().map(([k, v]) => [k, v, X.filter((r) => r[0] === k && r[3] === 'Active').length]) };
     (opts.legs || []).forEach(([a, b]) => { L['d_leg_' + slug(a + b)] = { cols: QCOLS, rows: q.filter((r) => { const cs = cities(r); for (let i = 0; i + 1 < cs.length; i++) if (cs[i] === a && cs[i + 1] === b) return true; return false; }).map(qrow) }; });
-    const pairs = new Set(T.map((r) => [r[1], r[2]].sort().join('\u0000'))), xcity = cc(X.map((r) => r[0]));
+    const pairs = new Set(T.map((r) => [r[1], r[2]].sort().join('\u0000'))), xcity = (cat.transfersV3 ? { get: (c) => cat.transfersV3[c] || 0 } : cc(X.map((r) => r[0])));   // B5: the route check reads the engine's tab when it is loaded (F11)
     const rcq = counter(); q.forEach((r) => { const cs = cities(r); if (cs.length >= 2) rcq.add(cs.join('\u0000')); });
     const top_routes = rcq.common(8).map(([k, n], i) => { const rt = k.split('\u0000'), key = 'd_route_' + (i + 1);
       const noleg = []; for (let j = 0; j + 1 < rt.length; j++) if (!pairs.has([rt[j], rt[j + 1]].sort().join('\u0000'))) noleg.push(rt[j] + ' → ' + rt[j + 1]);
@@ -14411,7 +14411,7 @@ function todo(pages, all) {
     const hcn = cc(H.map((r) => r[0])), v3 = cat.transfersV3 || null, v2_ready = [];
     DEST.forEach(([country, cs]) => cs.forEach((c) => { const k = 'v2_ready_' + slug(c), hN = hcn.get(c), sN = (TO[c] || { n: 0 }).n, xN = xcity.get(c), tN = rcn.get(c);
       const gaps = [['hotels', hN], ['tours', sN], ['transfers', xN]].filter((e) => e[1] === 0).map((e) => e[0]);
-      put(k, { hotels: hN, tours: sN, transfers: xN, trains: tN, transfersV3: v3 ? (v3[c] || 0) : null }, 'Rows for ' + c + ' in each master: hotels, tours, transfers (Transfers tab' + (v3 ? '; Transfers_v3 = the engine\'s tab, shown in the list' : '') + '), train / ferry routes from or to it.', 'masters (getCatalogueStats)',
+      put(k, { hotels: hN, tours: sN, transfers: xN, trains: tN, transfersV3: v3 ? (v3[c] || 0) : null }, 'Rows for ' + c + ' in each master: hotels, tours, transfers (' + (v3 ? 'Transfers_v3 = the engine\'s tab' : 'Transfers tab') + '), train / ferry routes from or to it.', 'masters (getCatalogueStats)',
         ['Master', 'Rows', 'What is missing'], [['Hotels', hN, hN ? '' : 'no hotel to price'], ['Tours', sN, sN ? '' : 'no tour to price'], ['Transfers', xN, xN ? '' : 'airport / station transfers = Price on request'], ['Train / ferry routes', tN, '']].concat(v3 ? [['Transfers_v3 (engine)', v3[c] || 0, '']] : []));
       v2_ready.push([k, country, c, hN, sN, xN, tN, gaps]); }));
     return { lists: L, top_routes: top_routes, rate_dates: rate_dates, v2: { m: m, v2_link_month: v2_link_month, v2_por_cities: v2_por_cities, v2_por_note: Object.keys(last).length + ' saved quotes with a quote id; ' + por.length + ' cities with 10+ saved quotes', v2_ready: v2_ready } };
@@ -14446,7 +14446,7 @@ function todo(pages, all) {
     const swiss = gapCities.length && gapCities.every((c) => SWISS.has(c)) ? ' Swiss' : '';
     const rows = TR.map(([key, rt, n, noleg, notr], i) => {
       const cs = rt.split(' · '), bad = new Set(notr), ok = !noleg.length && !notr.length;
-      const name = cs.map((c) => (bad.has(c) ? `<span class="rb-gap" title="${F.e(c)}: no rows in the Transfers tab">${F.e(c)}</span>` : F.e(c))).join(' <span class="rb-ar">→</span> ');
+      const name = cs.map((c) => (bad.has(c) ? `<span class="rb-gap" title="${F.e(c)}: no transfer rows">${F.e(c)}</span>` : F.e(c))).join(' <span class="rb-ar">→</span> ');
       const badge = ok ? '<span class="rb-b ok">✓ Ready</span>'
         : `<span class="rb-b bad" title="${[notr.length ? 'no transfer rows in ' + notr.join(', ') : '', noleg.length ? 'no train / ferry: ' + noleg.join(', ') : ''].filter(Boolean).join(' · ')}">` +
           (notr.length ? `${notr.length} ${notr.length > 1 ? 'cities' : 'city'} no transfers` : `${noleg.length} ${noleg.length > 1 ? 'legs' : 'leg'} no train`) + '</span>';
@@ -14459,7 +14459,7 @@ function todo(pages, all) {
         <p class="business-panel-intro">Top ${k} trips (2+ cities, all quotes) checked against the masters.</p>
         <div class="rb-sum">
           <div class="rb-t ok"><b>${fullQ}</b><span>ready to price<small>quotes · ${full.length} of ${k} routes</small></span></div>
-          <div class="rb-t bad" title="no transfer rows in ${gapCities.join(', ')}"><b>${gapQ}</b><span>miss transfers (Transfers tab)<small>in ${gapCities.length}${swiss} cities</small></span></div>
+          <div class="rb-t bad" title="no transfer rows in ${gapCities.join(', ')}"><b>${gapQ}</b><span>miss transfers<small>in ${gapCities.length}${swiss} cities</small></span></div>
           <div class="rb-t tl"><b>${TR.filter((r) => !r[3].length).length}/${k}</b><span>train on every leg<small>of the ${k} routes</small></span></div>
           <div class="rb-split" title="${fullQ} quotes on ready routes · ${gapQ} on routes with a city without transfer rows"><span class="rb-split-l">${totQ} quotes on these ${k} routes</span><span class="rb-bar2"><i class="ok" style="width:${p1}%"></i><i class="bad" style="width:${p2}%"></i></span><span class="rb-split-r">${totQ ? Math.round(100 * fullQ / totQ) : 0}% ready</span></div>
         </div>
@@ -14520,7 +14520,7 @@ function todo(pages, all) {
       "catalogue": `<article class="business-panel c-blue" aria-labelledby="depth-title">
         <h3 id="depth-title"><span class="picon" aria-hidden="true">📍</span>Catalogue in the 12 cities quoted most</h3>
         <p class="business-panel-intro">What we can sell where clients ask most · red 0 = priced by hand.</p>
-        <div class="business-table-wrap"><table class="business-table cat-table"><thead><tr><th>City</th><th>Hotels</th><th title="Activities">Tours</th><th title="Train, ferry and bus routes from or to the city">Trains</th><th title="Rows in the Transfers tab; the engine prices from Transfers_v3 (see the city's readiness list)">Transfers tab</th></tr></thead><tbody>
+        <div class="business-table-wrap"><table class="business-table cat-table"><thead><tr><th>City</th><th>Hotels</th><th title="Activities">Tours</th><th title="Train, ferry and bus routes from or to the city">Trains</th><th title="Transfer rows the engine prices from: Transfers_v3 where that tab is loaded, else the Transfers tab">Transfers</th></tr></thead><tbody>
               ${(F.catRows(C)).map((r, i) => `<tr data-c6="${r.key}" data-title="${'Hotels in ' + F.e(r.c)}" data-f="Hotels LIVE backup rows with ${'City = ' + F.e(r.c) + ','} best stars first. Activities / train routes / transfer rows in the row = Sightseeing, Trains (${'from or to ' + F.e(r.c) + ')'} and Transfers masters." data-src="${D.SRCM}">${'<td>' + F.e(r.c) + '</td>'}${r.cells}</tr>`).join("")}
         </tbody></table></div>
         <p class="business-note">Source: Hotels, Sightseeing, Trains, Transfers masters · Quote_Log.</p>
@@ -14761,7 +14761,7 @@ function todo(pages, all) {
           return `<div class="v2-tiles v2-t3 v2-tsum"><div class="v2-tile ${ok('Australia') === rd('Australia').length ? 'v2-ok' : 'v2-warn'}"><b>${inr(ok('Australia'))} <small>of ${inr(rd('Australia').length)}</small></b><span>AU cities ready</span></div>` +
             `<div class="v2-tile ${ok('New Zealand') === rd('New Zealand').length ? 'v2-ok' : 'v2-bad'}"><b>${inr(ok('New Zealand'))} <small>of ${inr(rd('New Zealand').length)}</small></b><span>NZ cities ready</span></div>` +
             `<div class="v2-tile ${nox ? 'v2-bad' : 'v2-ok'}"><b>${inr(nox)} <small>of ${inr(V.v2_ready.length)}</small></b><span>cities with no transfer row</span></div></div>`; })() +
-        `<div class="v2-tw v2-fillt"><table class="v2-ready"><thead><tr><th>Country</th><th>City</th><th>Hotels</th><th>Tours</th><th>Transfers tab</th><th>Trains</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`,
+        `<div class="v2-tw v2-fillt"><table class="v2-ready"><thead><tr><th>Country</th><th>City</th><th>Hotels</th><th>Tours</th><th>Transfers</th><th>Trains</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`,
         opts.srcReady) +
       card('v2-c-red v2-filltodo', '📋', 'To-do: red numbers on this page', 'Each red number here, who should fix it, and the card item or issue that fixes it.', todoSum(['d']) + todo(['d'], false), TODO_NOTE) + `</div>`;
     return screen('v2d3', 'v2-h-data', 'Data quality', w3) + screen('v2d4', 'v2-h-ready', 'Launch readiness', w4);
