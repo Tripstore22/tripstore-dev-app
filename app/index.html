@@ -2236,7 +2236,7 @@ input[type="date"]#quickStartDate:focus {
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
           <div style="background:var(--terra-bg);border:1px solid var(--terra-b);border-radius:7px;padding:8px 10px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:2px;">Hotel Net</div><div id="netH" style="font-size:13px;font-weight:700;color:var(--ink);">₹0</div></div>
           <div style="background:var(--terra-bg);border:1px solid var(--terra-b);border-radius:7px;padding:8px 10px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:2px;">Sights Net</div><div id="netS" style="font-size:13px;font-weight:700;color:var(--ink);">₹0</div></div>
-          <div style="background:var(--terra-bg);border:1px solid var(--terra-b);border-radius:7px;padding:8px 10px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:2px;">Transfers Net</div><div id="netT" style="font-size:13px;font-weight:700;color:var(--ink);">₹0</div></div>
+          <div style="background:var(--terra-bg);border:1px solid var(--terra-b);border-radius:7px;padding:8px 10px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:2px;">Transfers &amp; Cars Net</div><div id="netT" style="font-size:13px;font-weight:700;color:var(--ink);">₹0</div></div>
           <div style="background:var(--terra-bg);border:1px solid var(--terra-b);border-radius:7px;padding:8px 10px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:2px;">Rail Net</div><div id="netR" style="font-size:13px;font-weight:700;color:var(--ink);">₹0</div></div>
           <div style="background:var(--cream2);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--ink4);margin-bottom:2px;">Markup</div><div id="valM" style="font-size:13px;font-weight:700;color:var(--ink);">₹0</div></div>
           <div style="background:var(--cream2);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--ink4);margin-bottom:2px;">GST</div><div id="valG" style="font-size:13px;font-weight:700;color:var(--ink);">₹0</div></div>
@@ -6829,6 +6829,8 @@ function _sdParamsOf_(w) {
     const keys = Object.keys(w.byArea || {}).sort();
     if (keys.length) { p.carTypeByArea = {}; keys.forEach(k => { p.carTypeByArea[k] = w.byArea[k]; }); }
     p.lateArrival = w.late === true;
+    const ek = Object.keys(w.edits || {}).sort();   // NZ-SD bug 3: carEdits = { NORTH: { pickupDayNo, pickupPoint, dropDayNo, dropPoint }, ... }
+    if (ek.length) { p.carEdits = {}; ek.forEach(k => { p.carEdits[k] = w.edits[k]; }); }
     return p;
 }
 /** The reverse: what the card shows for a quote built (or saved) with these params. */
@@ -6837,6 +6839,7 @@ function _sdWantedFrom_(p) {
     const w = { carType: String(p.carType) };
     if (p.carTypeByArea && typeof p.carTypeByArea === 'object' && Object.keys(p.carTypeByArea).length) w.byArea = Object.assign({}, p.carTypeByArea);
     if (p.lateArrival === true) w.late = true;
+    if (p.carEdits && typeof p.carEdits === 'object' && Object.keys(p.carEdits).length) w.edits = Object.assign({}, p.carEdits);
     return w;
 }
 
@@ -6862,6 +6865,7 @@ function tsSdValidate_(sd) {
 
 /** Called after every engine build (onAutoBuildQuote): remember what the quote on screen was built with. */
 function tsSdTakeResult_(data, params) {
+    window._tsSdBuilding = false; window._tsSdPrev = null;   // NZ-SD bug 1: the new quote's result is taken, the building state is over
     const asked = params && params.selfDrive ? params.selfDrive : null;
     window._tsSdReopened = false; window._tsSdEngineOff = false;
     if (asked && !(data && data.selfDrive)) {
@@ -6907,6 +6911,7 @@ function tsCheckSelfDrive_() {
 
 /** New Quote: no car state is carried into the next quote (toggle, built params, engine block, notes). */
 function tsSdReset_() {
+    window._tsSdBuilding = false; window._tsSdPrev = null;
     tsSdWanted = null; window._tsSdBuiltParams = null; window._tsSdResult = null; window._tsSdBroken = false;
     window._tsSdEngineOff = false; window._tsSdReopened = false; window._tsSdUserOff = false; window._tsSdOldEngine = false;
     tsSdSyncToggle_();
@@ -6957,6 +6962,46 @@ function toggleSelfDrive(enabled) {
 
 /** Car-type pop-up. No argument = every car (sidebar); a car row's index = only that car (Yash 27 Oct: changing the Christchurch car
  *  must not change the Rotorua car). */
+/** NZ-SD bug 3 (owner 25 Nov): the Change dialog of ONE car also lets the rep move its pick-up / drop-off date and place. The dates offered are the stay of the car's first / last city
+ *  (check-in day to check-out day, as trip day numbers); the place is the airport or in town. The engine prices the new rental from the same rate table (selfDrive.carEdits); nothing is typed here. */
+function _sdDayNo_(iso) {
+    const a = String((selectedRoute && selectedRoute[0] && selectedRoute[0].cin) || '').slice(0, 10), b = String(iso || '').slice(0, 10);
+    if (!a || !b) return 0;
+    return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000) + 1;
+}
+function tsSdEditDates_(city, iso, last) {   // every date from check-in to check-out of the stay of `city` that holds `iso`: [{ day, iso }]
+    const hit = (selectedRoute || []).filter(x => x && x.city === city && x.cin && x.cout && String(x.cin).slice(0, 10) <= String(iso).slice(0, 10) && String(iso).slice(0, 10) <= String(x.cout).slice(0, 10));
+    const st = last ? hit[hit.length - 1] : hit[0]; if (!st) return [];
+    const out = []; const t0 = Date.parse(String(st.cin).slice(0, 10) + 'T00:00:00Z'), t1 = Date.parse(String(st.cout).slice(0, 10) + 'T00:00:00Z');
+    for (let t = t0; t <= t1; t += 86400000) { const d = new Date(t).toISOString().slice(0, 10); out.push({ day: _sdDayNo_(d), iso: d }); }
+    return out;
+}
+function tsSdEditHtml_(sg) {
+    if (!sg) return '';
+    const pu = tsSdEditDates_(sg.fromCity, sg.pickupDate, false), dr = tsSdEditDates_(sg.toCity, sg.dropDate, true);
+    if (!pu.length || !dr.length) return '';
+    const sel = (id, list, cur) => `<select id="${id}" style="width:100%;padding:6px 8px;border:1px solid var(--border2);border-radius:7px;font-size:13px;background:#fff;color:var(--ink);">${list.map(o => `<option value="${o.v}" ${String(o.v) === String(cur) ? 'selected' : ''}>${_sdEsc_(o.l)}</option>`).join('')}</select>`;
+    const days = l => l.map(o => ({ v: o.day, l: _sdDate_(o.iso) }));
+    const pts = [{ v: 'Airport', l: 'Airport' }, { v: 'City', l: 'In town' }];
+    const lbl = t => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink3);margin:6px 0 2px;">${t}</div>`;
+    return `<div id="sdEdit" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border2);">
+        <div style="font-size:12px;font-weight:700;color:var(--ink);">Pick-up and drop-off</div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:2px;">The price is worked out again from the rate table for the dates and places you choose.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px;">
+          <div>${lbl('Pick-up date')}${sel('sdPickDay', days(pu), _sdDayNo_(sg.pickupDate))}</div><div>${lbl('Pick-up place')}${sel('sdPickPt', pts, sg.pickupPoint)}</div>
+          <div>${lbl('Drop-off date')}${sel('sdDropDay', days(dr), _sdDayNo_(sg.dropDate))}</div><div>${lbl('Drop-off place')}${sel('sdDropPt', pts, sg.dropPoint)}</div>
+        </div></div>`;
+}
+/** What the rep changed in the dialog, as the engine's carEdits entry; null when nothing differs from the car as built. */
+function tsSdReadEdit_(sg) {
+    const m = document.getElementById('selfDriveModal'); if (!m || !sg) return null;
+    const g = id => { const e = m.querySelector('#' + id); return e ? e.value : null; };
+    const pd = g('sdPickDay'), pp = g('sdPickPt'), dd = g('sdDropDay'), dp = g('sdDropPt'); if (pd === null) return null;
+    const cur = { pickupDayNo: _sdDayNo_(sg.pickupDate), pickupPoint: sg.pickupPoint, dropDayNo: _sdDayNo_(sg.dropDate), dropPoint: sg.dropPoint };
+    const now = { pickupDayNo: Number(pd), pickupPoint: pp, dropDayNo: Number(dd), dropPoint: dp };
+    return JSON.stringify(now) === JSON.stringify(cur) ? null : now;
+}
+
 function tsSdOpenPicker_(segIdx) {
     let m = document.getElementById('selfDriveModal');
     if (!m) {
@@ -6969,7 +7014,7 @@ function tsSdOpenPicker_(segIdx) {
     const sd = window._tsSdResult;
     const sg = segIdx != null && sd && tsSdWanted ? sd.segments[segIdx] : null;
     const area = sg ? _sdAreaKey_(sg) : '';                       // '' = every car
-    window._tsSdPickArea = area;
+    window._tsSdPickArea = area; window._tsSdPickSeg = sg || null;   // NZ-SD bug 3: the car the dialog is about
     const sugg = _sdSuggest_(pax) || window._tsSdSuggested;    // the owner's table first (27 Oct); the engine's only as a fallback
     const base = (tsSdWanted && tsSdWanted.carType) || sugg || 'SMALL_SUV';
     const pre = area ? ((tsSdWanted.byArea && tsSdWanted.byArea[area]) || sg.type || base) : base;
@@ -6979,12 +7024,13 @@ function tsSdOpenPicker_(segIdx) {
     const opt = ([v, l]) => `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;cursor:pointer;font-size:13px;color:var(--ink);background:#fff;">
         <input type="radio" name="sdCarType" value="${v}" ${v === pre ? 'checked' : ''} style="accent-color:var(--terra);">${_sdEsc_(l)}${v === sugg ? ' <span style="font-size:10px;color:var(--sage);font-weight:700;">suggested</span>' : ''}</label>`;
     const moreOpen = TS_SD_TYPES_MORE.some(x => x[0] === pre);
-    m.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="sdTitle" style="background:var(--cream);border-radius:14px;max-width:380px;width:100%;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.3);">
+    m.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="sdTitle" style="background:var(--cream);border-radius:14px;max-width:420px;width:100%;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.3);">
         <div id="sdTitle" style="font-family:'Playfair Display',Georgia,serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:4px;">${head}</div>
         <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;">${sub}</div>
         <div style="display:grid;gap:6px;">${TS_SD_TYPES_MAIN.map(opt).join('')}</div>
         <details ${moreOpen ? 'open' : ''} style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--terra);">More</summary>
           <div style="display:grid;gap:6px;margin-top:6px;">${TS_SD_TYPES_MORE.map(opt).join('')}</div></details>
+        ${sg ? tsSdEditHtml_(sg) : ''}
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
           <button type="button" onclick="tsSdClosePicker_(false)" class="btn-ghost" style="padding:8px 14px;">Cancel</button>
           <button type="button" onclick="tsSdClosePicker_(true)" style="padding:8px 14px;border-radius:8px;background:var(--terra);color:#fff;font-weight:700;">Use this car</button>
@@ -6996,10 +7042,12 @@ function tsSdClosePicker_(apply) {
     const m = document.getElementById('selfDriveModal');
     const pick = m && m.querySelector('input[name="sdCarType"]:checked');
     const area = window._tsSdPickArea || ''; window._tsSdPickArea = '';
+    const _edit = apply && area ? tsSdReadEdit_(window._tsSdPickSeg) : null; window._tsSdPickSeg = null;   // NZ-SD bug 3: read before the dialog is hidden
     if (m) m.style.display = 'none';
     if (!apply || !pick) { tsSdSyncToggle_(); return; }          // Cancel: back to what it was
     if (area && tsSdWanted && tsSdWanted.carType) {
         tsSdWanted = Object.assign({}, tsSdWanted, { byArea: Object.assign({}, tsSdWanted.byArea || {}, { [area]: pick.value }) });   // only this car
+        if (_edit) tsSdWanted.edits = Object.assign({}, tsSdWanted.edits || {}, { [area]: _edit });   // NZ-SD bug 3: its new pick-up / drop-off date and place
     } else {
         // every car (per-car types replaced); late arrival kept as it was, ON when self-drive is switched on (owner 27 Oct default)
         tsSdWanted = { carType: pick.value, late: tsSdWanted ? tsSdWanted.late === true : true };
@@ -7110,7 +7158,7 @@ function tsSdCarRows_(sd) {
                     <div class="flex items-center justify-end whitespace-nowrap"><span style="font-size:12px;margin-right:2px;color:var(--terra);">₹</span><span style="font-size:13px;color:var(--terra);">${inr(sg.priceInr)}</span></div>
                 </td>
                 <td class="p-2 border text-center no-print" style="white-space:nowrap;">
-                    <button onclick="tsSdOpenPicker_(${i})" class="tbl-action-btn" title="Change this car's type — only this car (the quote is rebuilt)">Change</button>
+                    <button onclick="tsSdOpenPicker_(${i})" class="tbl-action-btn" title="Change this car: type, pick-up and drop-off — only this car (the quote is rebuilt)">Change</button>
                 </td>
             </tr>`;
     }).join('');
@@ -7131,9 +7179,30 @@ function tsSdTermsHtml_(sd) {
         ${notInc.length ? `<p><strong>Not included in the car price:</strong> ${notInc.map(_sdEsc_).join(' · ')}.</p>` : ''}`;
 }
 
+/** NZ-SD bug 1 (owner 25 Nov): while a build runs, the PREVIOUS quote's car rows must not stay on the screen.
+ *  Start (right after the button says "Building..."): remember the old result and take its rows and block off the screen.
+ *  A good build calls tsSdTakeResult_ (which ends the building state). End (the `finally` of the build): if the old result is still the current one the build failed or was refused,
+ *  the old quote is still the quote on screen, so its car rows are drawn again. */
+function tsSdBuildClear_() {
+    try { document.querySelectorAll('tr.sd-car-row').forEach(r => r.remove()); } catch (e) { /* no table yet */ }
+    const box = document.getElementById('selfDriveBlock'); if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+    const tbox = document.getElementById('selfDriveTerms'); if (tbox) tbox.innerHTML = '';
+}
+function tsSdBuildStart_() {
+    window._tsSdBuilding = true; window._tsSdPrev = window._tsSdResult || null;
+    try { tsRenderSelfDrive_(); } catch (e) { tsSdBuildClear_(); }
+}
+function tsSdBuildEnd_() {
+    if (!window._tsSdBuilding) return;
+    window._tsSdBuilding = false;
+    const prev = window._tsSdPrev; window._tsSdPrev = null;
+    if (prev && window._tsSdResult === prev) { try { tsRenderSelfDrive_(); } catch (e) { console.warn('[tsSdBuildEnd_]', e); } }
+}
+
 /** Draw self-drive: car rows in the 03 table + its title, crossings/fallbacks under the table, car terms at the top of 05. */
 function tsRenderSelfDrive_() {
     try { tsSdSyncToggle_(); } catch (e) { /* C3: the self-drive box shows what the quote on screen was built with */ }
+    if (window._tsSdBuilding) { tsSdBuildClear_(); const _bt = _sdSectionTitle_(); if (_bt && _bt.dataset.sdOrig) _bt.textContent = _bt.dataset.sdOrig; return; }   // NZ-SD bug 1: a build is running, the old quote's cars are not shown
     const box = document.getElementById('selfDriveBlock');
     const tBody = document.getElementById('transferTableBody');
     const title = _sdSectionTitle_();
@@ -9276,7 +9345,7 @@ function calculateBudgetInvestment() {
     document.getElementById('resGrandTotal').innerText = fmt(grandTotal);
     document.getElementById('netH').innerText = fmt(hNet);
     document.getElementById('netS').innerText = fmt(sNet);
-    document.getElementById('netT').innerText = fmt(tNet);
+    document.getElementById('netT').innerText = fmt(tNet + sdNet);   // NZ-SD bug 4 (owner 25 Nov): the cars are in this box, so the boxes add up to the total
     const _netR = document.getElementById('netR');
     if (_netR) _netR.innerText = fmt(icNet);
     document.getElementById('valM').innerText = fmt(markupVal);
@@ -9295,7 +9364,7 @@ function calculateBudgetInvestment() {
         document.getElementById('breakdownHotelLine').innerHTML =
             `Hotel: <b>${fmt(hBudgetClient)}</b> (client) ÷ ${markupDivisor.toFixed(2)} = <b>${fmt(hNet_budget)}</b> net`;
         document.getElementById('breakdownLandLine').innerHTML =
-            `Land: <b>${fmt(landBudgetClient)}</b> (client) ÷ ${markupDivisor.toFixed(2)} = <b>${fmt(landNet)}</b> net → Trains ${fmt(icNet)} → Transfers ${fmt(tNet)} → Sights ${fmt(Math.max(0, landNet - icNet - tNet))} remaining`;
+            `Land: <b>${fmt(landBudgetClient)}</b> (client) ÷ ${markupDivisor.toFixed(2)} = <b>${fmt(landNet)}</b> net → Trains ${fmt(icNet)} → Transfers &amp; cars ${fmt(tNet + sdNet)} → Sights ${fmt(Math.max(0, landNet - icNet - tNet - sdNet))} remaining`;
         const _over = Number(utilPct) > 100;
         const _near = Number(utilPct) >= 90;
         const _utilColor = _over ? 'var(--red)' : _near ? '#c8990a' : 'var(--sage)';
@@ -10195,8 +10264,9 @@ async function onAutoBuildQuote() {
     btn.disabled = true;
     const origLabel = btn.innerHTML;
     btn.innerHTML = '<span class="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span> Building…';
+    tsSdBuildStart_();   // NZ-SD bug 1: the previous quote's car rows come off the screen now, not when the answer arrives
     try { await _ensureData_(selectedRoute.map(r => r.city), true); }   // P0 STARTUP-PERCITY
-    catch (e) { btn.disabled = false; btn.innerHTML = origLabel;
+    catch (e) { btn.disabled = false; btn.innerHTML = origLabel; tsSdBuildEnd_();
                 showToast('Could not load hotels and tours for this route — please try again', 'error'); return; }
 
     const cfg     = getTravelConfigs();
@@ -10377,6 +10447,7 @@ async function onAutoBuildQuote() {
     } finally {
         btn.disabled = false;
         btn.innerHTML = origLabel;
+        tsSdBuildEnd_();   // NZ-SD bug 1: a failed or refused build leaves the old quote on screen, so its cars come back
     }
 }
 
@@ -14494,8 +14565,8 @@ function todo(pages, all) {
       put(k, { n: rows.filter((r) => sid.has(r.id)).length, of: rows.length }, 'Quote_Log quotes logged in ' + lab + ' ' + mth.slice(0, 4) + ' whose Quote ID is in Saved_Itineraries. List = the ones NOT found.', LS, LC, rows.slice().sort(newest).filter((r) => !sid.has(r.id)).map(lrow));
       return [k, lab]; });
     const tot = Object.keys(TO).reduce((s, c) => s + TO[c].n, 0), idH = Object.keys(TO).reduce((s, c) => s + TO[c].idHigh, 0), idA = Object.keys(TO).reduce((s, c) => s + TO[c].idAny, 0);
-    put('v2_tour_id_high', { n: idH, of: tot }, 'Tours in the sightseeing master with an experience_id marked high confidence.', 'Sightseeing master (getCatalogueStats)');
-    put('v2_tour_id_any', { n: idA, of: tot }, 'Tours in the sightseeing master with any experience_id.', 'Sightseeing master (getCatalogueStats)');
+    put('v2_tour_id_high', { n: idH, of: tot }, 'Tours in the sightseeing master with an experience_id marked high confidence.', 'our tour list');
+    put('v2_tour_id_any', { n: idA, of: tot }, 'Tours in the sightseeing master with any experience_id.', 'our tour list');
     need('v2_private_shared', 'per quote tour line: the tour type booked (private / shared) and the type printed', 'Quote tour lines where a private tour is shown as shared.', 'Quote tour lines are not recorded per quote');
     need('v2_viator_sync', 'the Viator sync log (last good sync time)', 'Days since the last good Viator sync.', 'No sync date column in the sightseeing master');
     const now = opts.now || new Date(), today = Date.UTC(new Date(now.getTime() + 330 * 60000).getUTCFullYear(), new Date(now.getTime() + 330 * 60000).getUTCMonth(), new Date(now.getTime() + 330 * 60000).getUTCDate());
@@ -14503,7 +14574,7 @@ function todo(pages, all) {
     const rdc = counter(); H.forEach((r) => rdc.add(String(r[11] || '').slice(0, 10) || '(blank)'));
     const nw = rate_dates.newest ? Date.parse(rate_dates.newest + 'T00:00:00Z') : null;
     put('v2_rate_age', { newest: nw == null ? null : ('0' + new Date(nw).getUTCDate()).slice(-2) + ' ' + MONTHS[new Date(nw).getUTCMonth()] + ' ' + new Date(nw).getUTCFullYear(), days: nw == null ? null : Math.round((today - nw) / DAY),
-      dated: rd.filter((v) => /^\d{4}-\d\d-\d\d$/.test(v)).length, legacy: legacy, blank: nodate, all: H.length }, 'Newest Rate_Date in the Hotels master and its age today.', 'Hotels master (getCatalogueStats)',
+      dated: rd.filter((v) => /^\d{4}-\d\d-\d\d$/.test(v)).length, legacy: legacy, blank: nodate, all: H.length }, 'Newest Rate_Date in the Hotels master and its age today.', 'our hotel list',
       ['Rate date', 'Hotel rates'], rdc.keys().sort().reverse().map((k) => [k, rdc.get(k)]));
     const last = {}; ((sv && sv.quotes) || []).forEach((s) => { last[s.quoteId] = s; });
     const cq = counter(), cu = counter(), cl = {};
@@ -14517,7 +14588,7 @@ function todo(pages, all) {
     const hcn = cc(H.map((r) => r[0])), v3 = cat.transfersV3 || null, v2_ready = [];
     DEST.forEach(([country, cs]) => cs.forEach((c) => { const k = 'v2_ready_' + slug(c), hN = hcn.get(c), sN = (TO[c] || { n: 0 }).n, xN = xcity.get(c), tN = rcn.get(c);
       const gaps = [['hotels', hN], ['tours', sN], ['transfers', xN]].filter((e) => e[1] === 0).map((e) => e[0]);
-      put(k, { hotels: hN, tours: sN, transfers: xN, trains: tN, transfersV3: v3 ? (v3[c] || 0) : null }, 'Rows for ' + c + ' in each master: hotels, tours, transfers (' + (v3 ? 'Transfers_v3 = the engine\'s tab' : 'Transfers tab') + '), train / ferry routes from or to it.', 'masters (getCatalogueStats)',
+      put(k, { hotels: hN, tours: sN, transfers: xN, trains: tN, transfersV3: v3 ? (v3[c] || 0) : null }, 'Rows for ' + c + ' in each master: hotels, tours, transfers (' + (v3 ? 'Transfers_v3 = the engine\'s tab' : 'Transfers tab') + '), train / ferry routes from or to it.', 'our hotel, tour, train and transfer lists',
         ['Master', 'Rows', 'What is missing'], [['Hotels', hN, hN ? '' : 'no hotel to price'], ['Tours', sN, sN ? '' : 'no tour to price'], ['Transfers', xN, xN ? '' : 'airport / station transfers = Price on request'], ['Train / ferry routes', tN, '']].concat(v3 ? [['Transfers_v3 (engine)', v3[c] || 0, '']] : []));
       v2_ready.push([k, country, c, hN, sN, xN, tN, gaps]); }));
     return { lists: L, top_routes: top_routes, rate_dates: rate_dates, v2: { m: m, v2_link_month: v2_link_month, v2_por_cities: v2_por_cities, v2_por_note: 'all ' + Object.keys(last).length + ' saved quotes with a quote id, as of today; ' + por.length + ' cities with 10+ saved quotes', v2_ready: v2_ready } };
@@ -14905,7 +14976,7 @@ function todo(pages, all) {
       srcLink: 'Source: Quote_Log · Saved_Itineraries · PDF_DELIVERY_LOG (live) · joined on quote id.',
       srcQuality: 'Source: Sightseeing + Hotels master tabs · Rate_Date · Saved_Itineraries · lines with no price (live).',
       srcReady: 'Source: Hotels, Sightseeing, Transfers and Trains master tabs (live). AU / NZ legs are self-drive or flights, so 0 train rows is not a gap.' });
-    const main = mods.DM.main({ C: C, DD: DD, SRCM: 'Master tabs (getCatalogueStats)', SRCR: 'Quote_Log + Trains + Transfers master tabs', SRCL: 'Quote_Log + Trains master tab', TAG: TAG }, mods.F, v2);
+    const main = mods.DM.main({ C: C, DD: DD, SRCM: 'our hotel, tour, train and transfer lists', SRCR: 'Quote_Log + Trains + Transfers master tabs', SRCL: 'Quote_Log + Trains master tab', TAG: TAG }, mods.F, v2);
     const keys = [...new Set([...main.matchAll(/data-c6="([^"]+)"/g)].map((m) => m[1]))], data = { m: {}, lists: {} };
     keys.forEach((k) => { if ((DD.lists || {})[k]) data.lists[k] = DD.lists[k]; data.m[k] = ((DD.v2 && DD.v2.m) || {})[k] || { f: '', src: 'master tabs + Quote_Log (live)' }; });
     return mods.inject(page(main), data);
@@ -15008,7 +15079,7 @@ function _tsBizHtmlRaw_(view, d) {
     }
     if (view === 'data') {
         if (!d.src.catalogue) _tsBizCatShowSaved_(d);
-        if (!_tsBizCatOk_(d.src.catalogue)) return _tsBizPlaceHtml_(d.catSlow ? 'The catalogue is slow to answer today' : 'Reading the catalogue…', d.catSlow ? 'It did not answer in time. Press Refresh to try again. Everything else is already up to date.' : 'First load, about 10 seconds. The next time this page shows the last catalogue numbers at once, then updates them.');
+        if (!_tsBizCatOk_(d.src.catalogue)) return _tsBizPlaceHtml_(d.catSlow ? 'The catalogue is slow to answer today' : 'Reading the catalogue…', d.catSlow ? 'It did not answer in time. Press Refresh to try again. Everything else is already up to date.' : 'First load, about 20 seconds. The next time this page shows the last catalogue numbers at once, then updates them.');
         const sw = C6Windows.srcFor(d.src, d.now), C = C6DataCompute.compute(sw), DD = C && !C.missing ? C6DataCompute.data(sw, { top12: C.top12, legs: C.no_train_legs, now: d.now }) : null;
         return C6DataPage.render({ C: C, DD: DD, asOf: O.as_of }, { F: C6DataFormat.F, DM: C6DataMain, DV: C6DataV2, CSS: C6DataCSS.CSS, inject: C6BusinessRender.inject });
     }
