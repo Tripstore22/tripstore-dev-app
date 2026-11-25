@@ -12987,6 +12987,15 @@ async function downloadExcel() {
     q.rows = src.quotes.rows.filter(function (r) { var d = String((r && r.at) || '').slice(0, 10); return d >= lo && d <= hi; });
     var s = {}; Object.keys(src).forEach(function (k) { s[k] = src[k]; }); s.quotes = q; return s;
   }
+  // stage 8: the saved rows with NO quote id that were saved in the SELECTED period, from the day the combined call puts on each of them (saved.noIdDays { IST day: count }) and saved.noIdUnreadable (no readable date).
+  // null when the reply carries no days (an older server): the caller then says "all rows, as of today". of = every saved row of the period, with or without an id.
+  function noIdIn(sv, now) {
+    if (!sv || sv.ok === false || !sv.noIdDays || typeof sv.noIdDays !== 'object') return null;
+    var w = pair(now, SELECTED).w, lo = new Date(w[0]).toISOString().slice(0, 10), hi = new Date(w[1]).toISOString().slice(0, 10), n = 0;
+    Object.keys(sv.noIdDays).forEach(function (d) { if (d >= lo && d <= hi) n += Number(sv.noIdDays[d]) || 0; });
+    var withId = (Array.isArray(sv.quotes) ? sv.quotes : []).filter(function (q) { var d = String((q && q.savedAt) || ''); return d >= lo && d <= hi; }).length;
+    return { n: n, of: n + withId, unreadable: Number(sv.noIdUnreadable) || 0 };
+  }
   function relabel(html) { return String(html).split('⟦N⟧').join(String(SELECTED)); }   // the period's size in any text that names it (the token is written in the rules)
   // metrics that are "as of today" by their own definition (their threshold is in days, the window does not change them): one number, not three
   var AS_OF = { pending_7d: 1, quiet_14d: 1 };
@@ -13002,7 +13011,7 @@ async function downloadExcel() {
     O.winAll = list(now); O.win = O.winAll.filter(function (x) { return x.n === SELECTED; }); O.as_of.win = O.win; O.sel = SELECTED;
     return O;
   }
-  var api = { NS: NS, DEFAULT: DEFAULT, setSel: setSel, selN: selN, srcFor: srcFor, SEL: SEL, relabel: relabel, pair: pair, list: list, range: range, merge: merge, todayIST: todayIST, AS_OF: AS_OF };
+  var api = { noIdIn: noIdIn, NS: NS, DEFAULT: DEFAULT, setSel: setSel, selN: selN, srcFor: srcFor, SEL: SEL, relabel: relabel, pair: pair, list: list, range: range, merge: merge, todayIST: todayIST, AS_OF: AS_OF };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.C6Windows = api;
 })(this);
 
@@ -13673,7 +13682,7 @@ function todo(pages, all) {
       if (!failed(src.saved)) {
         const ids = {}; (src.saved.quotes || []).forEach((s) => { ids[s.quoteId] = 1; });
         put('v2_link_saved', { n: qW.filter((r) => ids[r.id]).length, of: qW.length }, 'Quotes of the last ⟦N⟧ days whose Quote ID is also a quote_id in Saved_Itineraries.', QN + ' + Saved_Itineraries (getSavedQuoteStats)');
-        put('v2_link_blank', { n: src.saved.noQuoteId || 0, of: src.saved.rows || 0 }, 'Saved_Itineraries rows with no quote_id (cannot be joined to anything): ALL rows, as of today (a saved row carries no date in this reply).', 'Saved_Itineraries (getSavedQuoteStats)');
+        put('v2_link_blank', (function () { var w = C6Windows.noIdIn(src.saved, opts.now || new Date()); return w ? { n: w.n, of: w.of, win: true, k: w.unreadable } : { n: src.saved.noQuoteId || 0, of: src.saved.rows || 0 }; })(), (C6Windows.noIdIn(src.saved, opts.now || new Date()) ? 'Saved_Itineraries rows saved in the last ⟦N⟧ days with no quote_id (cannot be joined to anything). Rows whose save date cannot be read are on their own line.' : 'Saved_Itineraries rows with no quote_id (cannot be joined to anything): ALL rows, as of today (a saved row carries no date in this reply).'), 'Saved_Itineraries (getSavedQuoteStats)');
       }
     } else {
       ['v2_outcome', 'v2_book_rate', 'v2_booked_value', 'v2_margin', 'v2_src_app_staff', 'v2_src_app_agent', 'v2_src_app_blank', 'v2_src_last_agent', 'v2_src_agents_ever', 'v2_rework'].forEach((k) => need(k, NAQ, 'Needs every Quote_Log row from the DEV backend.', null, 'down'));
@@ -13747,7 +13756,8 @@ function todo(pages, all) {
       ['q', 'v2_rework_target', has('v2_rework') ? `${pct(rw.w, rw.wn)} of the last ⟦N⟧ days' quotes reworked by hand; no target set` : 'Rework share not readable', 'Sumit: set the target', L.card],
       ['q', 'light_days', ld && !ld.missing ? `${inr(ld.w)} quotes in the last ⟦N⟧ days have a city day with no tour` : 'Days with no tour not readable', 'Mihir (engine)', L.light],
       ['d', 'v2_link_saved', ls ? `${inr(ls.n)} of ${inr(ls.of)} quotes found in Saved_Itineraries` : 'Quote id join not readable', 'CC: join gap', L.i207],
-      ['d', 'v2_link_blank', lb ? `${inr(lb.n)} saved rows with no quote id (all rows, as of today)` : 'Saved rows with no quote id not readable', 'CC', L.i207],
+      ['d', 'v2_link_blank', lb ? `${inr(lb.n)} saved rows with no quote id (${lb.win ? 'saved in the last ⟦N⟧ days' : 'all rows, as of today'})` : 'Saved rows with no quote id not readable', 'CC', L.i207],
+      ...(lb && lb.k > 0 ? [['d', 'v2_link_blank', `${inr(lb.k)} saved rows with no quote id and no readable save date (all rows, as of today)`, 'CC', L.i207]] : []),
     ].filter((r) => M[r[1]]);
     const hs = [['last_backup', 'Last backup'], ['last_nightly', 'Last nightly'], ['v2_nightly_tests', 'Nightly tests pass / fail / known'], ['bot_up', 'WhatsApp bot'],
       ['v2_open_leads', 'Bot open leads'], ['v2_bot_queue', 'Bot queue'], ['v2_ai_calls', 'Bot AI calls'], ['api_spend', 'API spend vs cap']];
@@ -14478,7 +14488,7 @@ function todo(pages, all) {
     put('v2_link_saved', { n: QI.filter((k) => sid.has(k)).length, of: QI.length }, 'Quote_Log quotes whose Quote ID is also a quote_id in Saved_Itineraries. List = the quotes NOT found.', LS, LC, qs.filter((r) => !sid.has(r.id)).map(lrow));
     put('v2_link_pdf', { n: QI.filter((k) => pid.has(k)).length, of: QI.length }, 'Quote_Log quotes whose Quote ID appears in the PDF log. Not every quote gets a PDF. List = the quotes found.', LS, LC, qs.filter((r) => pid.has(r.id)).map(lrow));
     put('v2_link_all3', { n: QI.filter((k) => sid.has(k) && pid.has(k)).length, of: QI.length }, 'Quote_Log quotes found in Saved_Itineraries AND the PDF log.', LS, LC, qs.filter((r) => sid.has(r.id) && pid.has(r.id)).map(lrow));
-    put('v2_link_blank', { n: (sv && sv.noQuoteId) || 0, of: (sv && sv.rows) || 0 }, 'Saved_Itineraries rows with no quote_id at all (cannot be joined to anything).', 'Saved_Itineraries (getSavedQuoteStats)');
+    put('v2_link_blank', (function () { var w = C6Windows.noIdIn(sv, opts.now || new Date()); return w ? { n: w.n, of: w.of, win: true, k: w.unreadable } : { n: (sv && sv.noQuoteId) || 0, of: (sv && sv.rows) || 0 }; })(), (C6Windows.noIdIn(sv, opts.now || new Date()) ? 'Saved_Itineraries rows saved in the last ⟦N⟧ days with no quote_id at all (cannot be joined to anything). Rows whose save date cannot be read are on their own line.' : 'Saved_Itineraries rows with no quote_id at all (cannot be joined to anything): ALL rows, as of today (a saved row carries no date in this reply).'), 'Saved_Itineraries (getSavedQuoteStats)');
     const months = [...new Set(q.map((r) => new Date(at(r)).toISOString().slice(0, 7)))].sort(), v2_link_month = months.map((mth) => {
       const rows = q.filter((r) => new Date(at(r)).toISOString().slice(0, 7) === mth), lab = MONTHS[+mth.slice(5, 7) - 1], k = 'v2_lm_' + mth.replace('-', '');
       put(k, { n: rows.filter((r) => sid.has(r.id)).length, of: rows.length }, 'Quote_Log quotes logged in ' + lab + ' ' + mth.slice(0, 4) + ' whose Quote ID is in Saved_Itineraries. List = the ones NOT found.', LS, LC, rows.slice().sort(newest).filter((r) => !sid.has(r.id)).map(lrow));
@@ -14826,7 +14836,8 @@ function todo(pages, all) {
     const auGap = V.v2_ready.filter(r => r[1] === 'Australia' && r[7].length);
     const TODO = [
       ['d', 'v2_link_saved', `${inr(ls.n)} of ${inr(ls.of)} quotes found in Saved_Itineraries`, 'CC: join gap', L.i207],
-      ['d', 'v2_link_blank', `${inr(M.v2_link_blank.v.n)} saved rows with no quote id (all rows, as of today)`, 'CC', L.i207],
+      ['d', 'v2_link_blank', `${inr(M.v2_link_blank.v.n)} saved rows with no quote id (${M.v2_link_blank.v.win ? 'saved in the last ⟦N⟧ days' : 'all rows, as of today'})`, 'CC', L.i207],
+      ...(M.v2_link_blank.v.k > 0 ? [['d', 'v2_link_blank', `${inr(M.v2_link_blank.v.k)} saved rows with no quote id and no readable save date (all rows, as of today)`, 'CC', L.i207]] : []),
       ['d', por1 && por1[0], por1 ? `"Price on request" on ${pct(por1[2], por1[3])} of the ${inr(por1[3])} saved ${por1[1]} quotes (all saved quotes, as of today)` : '', 'CC: Transfers_v3 check', L.swiss],
       ['d', 'v2_rate_age', `Newest hotel rate ${ra.newest} (${inr(ra.days)} days old ${opts.ageWhen})`, 'to assign', L.none],
       ['d', 'v2_tour_id_high', `${inr(M.v2_tour_id_high.v.n)} of ${inr(M.v2_tour_id_high.v.of)} tours have a high-confidence ID`, 'to assign', L.none],
@@ -14840,7 +14851,7 @@ function todo(pages, all) {
     const por = V.v2_por_cities.map(([k, c, n, of]) => `<div class="v2-bar" data-c6="${k}" data-title="Price on request: ${esc(c)}"><span class="v2-bl">${esc(c)}</span><span class="v2-bt"><span class="v2-bf v2-fill" style="width:${Math.round(n / of * 100)}%"></span></span><b>${pct(n, of)}</b><em>${inr(n)} of ${inr(of)}</em></div>`).join('');
     const w3 = head('v2-h-data', '!', 'Current reality and data quality', 'Can one quote be followed through every log, and is the catalogue right: tour IDs, hotel rates, lines with no price.') + `<div class="v2-grid v2-g2">` +
       card('v2-c-sky', '🔗', 'One quote id across the logs', 'Quote_Log has a "Quote ID" column. Every saved quote should also be in Saved_Itineraries; only quotes that got a PDF are in the PDF log.',
-        `<div class="v2-tiles v2-t4">${lk('v2_link_saved', 'found in Saved_Itineraries', 'every saved quote should be here', 1)}${lk('v2_link_pdf', 'found in the PDF log', 'only quotes that got a PDF', 0)}${lk('v2_link_all3', 'found in all three logs', 'Quote_Log + Saved + PDF log', 0)}${lk('v2_link_blank', 'saved rows with no quote id · all rows, as of today', 'Saved_Itineraries rows', 1)}</div>` +
+        `<div class="v2-tiles v2-t4">${lk('v2_link_saved', 'found in Saved_Itineraries', 'every saved quote should be here', 1)}${lk('v2_link_pdf', 'found in the PDF log', 'only quotes that got a PDF', 0)}${lk('v2_link_all3', 'found in all three logs', 'Quote_Log + Saved + PDF log', 0)}${lk('v2_link_blank', M.v2_link_blank.v.win ? 'saved rows with no quote id · saved in the last ⟦N⟧ days' : 'saved rows with no quote id · all rows, as of today', 'Saved_Itineraries rows', 1)}</div>` +
         `<div class="v2-sub">Found in Saved_Itineraries, by month logged <small>(the quotes of the last ⟦N⟧ days; is the gap old or still happening?)</small></div>` + pbars(V.v2_link_month.map(([k, lab]) => [k, lab, 'Quotes logged in ' + lab + ' found in Saved_Itineraries']), 'v2-spread'),
         opts.srcLink) +
       card('v2-c-amber', '🔍', 'Data quality', "Tours on the right ID, how fresh hotel rates are, and how often a city's quotes carry a line with no price.",
@@ -14922,7 +14933,11 @@ async function _tsBizGet_(action, limitMs) {   // -> the reply; { ok: false, err
     const lim = limitMs || TS_BIZ_LIMIT_MS, ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     let timer = null, timedOut = false;
     if (ctl) timer = setTimeout(() => { timedOut = true; ctl.abort(); }, lim);
-    try { const r = await fetch(`${API_URL}?action=${action}`, { _tsNoRetry: true, signal: ctl ? ctl.signal : undefined }); return await r.json(); }
+    try {
+        const r = await fetch(`${API_URL}?action=${action}`, { _tsNoRetry: true, signal: ctl ? ctl.signal : undefined }), txt = await r.text();
+        try { return JSON.parse(txt); }
+        catch (pe) { return /^\s*Invalid action\s*$/.test(txt) ? { ok: false, error: 'unknown_action' } : { ok: false, error: 'no_answer', after: lim }; }   // an OLDER server answers an unknown action with the plain text "Invalid action"
+    }
     catch (e) { return { ok: false, error: timedOut ? 'timeout' : 'no_answer', after: lim }; }
     finally { if (timer) clearTimeout(timer); }
 }
@@ -14989,11 +15004,15 @@ function _tsBizDraw_() {
 }
 function _tsBizStamp_(ms) { const x = new Date(ms + 330 * 60000); return x.getUTCDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][x.getUTCMonth()] + ', ' + x.toISOString().slice(11, 16) + ' IST'; }
 function _tsBizFailText_(reps) {   // '' when every reply came; else why not (no answer in N s / no answer / login expired)
-    const bad = reps.filter((r) => r && !Array.isArray(r) && ((r.ok === false && (r.error === 'timeout' || r.error === 'no_answer')) || r.error === 'forbidden' || r.code === 403));
+    const bad = reps.filter((r) => r && !Array.isArray(r) && ((r.ok === false && (r.error === 'timeout' || r.error === 'no_answer' || r.error === 'part_failed')) || r.error === 'forbidden' || r.code === 403));
     if (!bad.length) return '';
     if (bad.some((r) => r.error === 'forbidden' || r.code === 403)) return 'your login has expired. Please log in again.';
     const to = bad.find((r) => r.error === 'timeout');
+    if (!to && bad.some((r) => r.error === 'part_failed')) return 'the server could not read part of the numbers. Press Refresh.';
     return (to ? 'no answer in ' + Math.round((to.after || TS_BIZ_LIMIT_MS) / 1000) + ' s' : 'no answer') + '. Press Refresh.';
+}
+function _tsBizFromAll_(r) {   // the combined answer -> the five answers the views read (same shapes as the five calls), and the time the SERVER read the numbers
+    return { reps: [r.quotes, r.agents, r.wallet, r.pdf, r.saved], at: r.computedAtMs > 0 ? r.computedAtMs : 0 };
 }
 function _tsBizStatusText_(d) {
     const O = d.O, v = _tsBizView === 'quote' ? 'Quote' : _tsBizView === 'data' ? 'Data' : 'Business';
@@ -15016,7 +15035,7 @@ const TS_BIZ_KEEP = {
     agents: { username: 1, role: 1, signedUpAt: 1, signedUpColumn: 1 },
     wallet: { ok: 1, error: 1, rows: 1, weeks: 1 },
     pdf: { ok: 1, error: 1, rows: 1, days: 1, quoteIds: 1 },
-    saved: { ok: 1, error: 1, rows: 1, noQuoteId: 1, quotes: { quoteId: 1, savedAt: 1, unpricedLines: 1, emptyDays: 1, dayTours: 1, route: 1 } }
+    saved: { ok: 1, error: 1, rows: 1, noQuoteId: 1, noIdDays: 1, noIdUnreadable: 1, quotes: { quoteId: 1, savedAt: 1, unpricedLines: 1, emptyDays: 1, dayTours: 1, route: 1 } }
 };
 function _tsBizPick_(x, schema) {
     if (schema === 1) return x;
@@ -15067,7 +15086,11 @@ async function loadBusinessDashboard(force) {
     _tsBizBusy = (async () => {
         const had = _tsBizData;   // the numbers on screen while this read runs (saved or earlier), if any
         try {
-            const reps = await Promise.all(TS_BIZ_CALLS.map((a) => _tsBizGet_(a)));   // not .map(_tsBizGet_): map would hand the index in as the time limit
+            let reps, at = Date.now();   // stage 8: ONE combined call (the server reads each sheet once and keeps a saved copy for a few minutes); an older server without it -> the five calls, as before
+            const r = await _tsBizGet_('getDashboardAll' + (force ? '&force=1' : ''));   // Refresh asks the server to read the sheets again
+            if (r && r.ok === true && r.quotes && r.saved) { const x = _tsBizFromAll_(r); reps = x.reps; at = x.at || at; }
+            else if (r && r.error === 'unknown_action') reps = await Promise.all(TS_BIZ_CALLS.map((a) => _tsBizGet_(a)));   // ONLY an older server that does not know getDashboardAll gets the five calls (not .map(_tsBizGet_): map would hand the index in as the time limit)
+            else { const bad = r && (r.ok === false || r.error === 'forbidden' || r.code === 403) ? r : { ok: false, error: 'no_answer' }; reps = [bad, bad, bad, bad, bad]; }   // refused, too slow, dropped, anything else: ONE verdict for the whole read and NO automatic second read (BRAIN ruling 3): the saved numbers stay and the page says so
             const [quotes, agents, wallet, pdf, saved] = reps, fail = _tsBizFailText_(reps);
             if (reps.some((r) => r && !Array.isArray(r) && (r.error === 'forbidden' || r.code === 403))) {   // the login is no longer good: nothing is kept, nothing is shown
                 _tsBizSavedDrop_(); _tsBizData = null; _tsBizAt = 0;
@@ -15076,8 +15099,8 @@ async function loadBusinessDashboard(force) {
             if (fail && had) { had.note = 'could not refresh (' + fail.replace(/\. Press Refresh\.$/, '') + '). Press Refresh.'; st.textContent = _tsBizStatusText_(had); return; }   // the saved numbers stay on screen
             const names = {};
             if (Array.isArray(agents) && window.crypto && crypto.subtle) for (const a of agents) { const u = String((a && a.username) || '').trim(); if (u) names[await _tsBizHash_(u.toLowerCase())] = u; }
-            const nowMs = Date.now(), ist = new Date(nowMs + 330 * 60000);
-            const d = { src: { quotes, agents: Array.isArray(agents) ? agents : null, wallet, pdf, saved }, names, at: nowMs, readAt: ist.toISOString().slice(11, 16), now: new Date(nowMs) };
+            const nowMs = Date.now(), ist = new Date(at + 330 * 60000);
+            const d = { src: { quotes, agents: Array.isArray(agents) ? agents : null, wallet, pdf, saved }, names, at: at, readAt: ist.toISOString().slice(11, 16), now: new Date(nowMs) };
             if (fail) d.note = 'some numbers could not be read (' + fail.replace(/\. Press Refresh\.$/, '') + '). Press Refresh.';   // nothing saved before: draw what came, say what did not
             else { const why = _tsBizSavedPut_(d); if (why) d.note = why; }
             _tsBizData = d; _tsBizAt = fail ? 0 : nowMs;
