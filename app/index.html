@@ -13248,9 +13248,9 @@ const KPI = [
   ['app_quotes', 'App quotes', '', '↗', 'up', v => v, m => `${m.trips[0]} different trips`],
   ['wa_quotes', 'WhatsApp bot quotes', 'blue', '◌', 'up', v => v, () => 'bot log: data coming'],
   ['won', 'Won quotes', 'green', '✓', 'up', v => v, () => 'marked Won in Quote_Log'],
-  ['open_value', 'Open quote value', 'amber', '₹', null, inr, m => 'still Pending'],
-  ['active_7d', 'Active agencies', 'teal', '◎', 'up', v => v, () => 'agents, staff left out'],
-  ['pending_7d', 'Pending >7 days', 'red', '!', 'down', v => v, () => 'saved 8–30 days ago'],
+  ['open_value', 'Open quote value', 'amber', '₹', null, inr, m => 'logged this week, still Pending'],
+  ['active_7d', 'Active agencies', 'teal', '◎', 'up', v => v, () => 'agents with a quote this week, staff left out'],
+  ['pending_7d', 'Pending >7 days', 'red', '!', 'down', v => v, () => '8–30 days old on the week’s last day'],
 ];
 const kpis = KPI.map(([k, label, cls, icon, good, fmt, foot]) => {
   const m = M[k]; used.add(k);
@@ -13285,7 +13285,7 @@ const body = `
 
 <main>
   <div class="strip">
-    <div class="period"><b>This week ${esc(O.as_of.week)}</b> <span>vs ${esc(O.as_of.prev)} · click any number for the list behind it</span></div>
+    <div class="period"><b>Last full week ${esc(O.as_of.week)}</b> <span>vs ${esc(O.as_of.prev)} · click any number for the list behind it</span></div>
     <div class="health" aria-label="Health">${health}</div>
   </div>
   <section class="kpi-grid" aria-label="This week">${kpis}</section>
@@ -13298,7 +13298,7 @@ const body = `
       ${row('pdf_refused', 'PDFs refused by billing · history only', 'down')}
       ${row('revenue', 'Revenue', 'up')}</div>
       <div class="sec s-sky"><div class="sub">Agents</div>
-      ${row('agents_signed', 'Signed up', 'up')}
+      ${row('agents_signed', 'Signed up this week', 'up')}
       ${row('paying', 'Paying · history only', 'up')}
       ${row('quiet_14d', 'Quiet for 14 days · call list', 'down')}</div>
       <div class="sec s-sage"><div class="sub">WhatsApp</div>
@@ -13319,12 +13319,12 @@ const body = `
     </section>
     <section class="col c-demand" aria-labelledby="h-demand">
       <h2 id="h-demand"><span class="tag" aria-hidden="true">↗</span><span class="ht">Demand<small>what clients ask for, this week vs last</small></span></h2>
-      <div class="dcols"><div>${group('Top cities', O.top_cities, 's-sky')}${group('Trip length', O.trip_length, 's-violet')}${group('Booked ahead of travel', O.lead || [], 's-teal')}</div><div>${group('Budget per person', O.budget_pp, 's-amber')}${group('Travel month', O.travel_month, 's-sage')}${group('Who travels', O.pax_mix, 's-rose')}</div></div>
+      <div class="dcols"><div>${group('Top cities', O.top_cities, 's-sky')}${group('Trip length', O.trip_length, 's-violet')}${group('Booked ahead of travel', O.lead || [], 's-teal')}</div><div>${group('Budget per person', O.budget_pp, 's-amber')}${group('Travel month · top 4', O.travel_month, 's-sage')}${group('Who travels', O.pax_mix, 's-rose')}</div></div>
       ${zeroBoth.length ? `<div class="zero"><span>0 both weeks:</span> ${zeroBoth.map(([k, l]) => `<span class="lt" ${a11y(k, l)}>${esc(l)}</span>`).join('<i>·</i>')}</div>` : ''}
       ${later([['cities_not_live', 'cities asked but not live']])}
     </section>
   </div>
-  <div class="foot"><span class="link" ${a11y('missing_all', 'Numbers the app cannot read yet')}>${nLater} numbers need CC · see which</span><span class="sep">·</span>Live from the DEV backend (Quote_Log, Users, Agent_Wallet, PDF_DELIVERY_LOG, Saved_Itineraries), read-only${O.as_of.read ? ' · read at ' + esc(O.as_of.read) + ' IST' : ''}</div>
+  <div class="foot"><span class="link" ${a11y('missing_all', 'Numbers the app cannot read yet')}>${nLater} numbers: data coming · see which</span><span class="sep">·</span>Live from the DEV backend (Quote_Log, Users, Agent_Wallet, PDF_DELIVERY_LOG, Saved_Itineraries), read-only${O.as_of.read ? ' · read at ' + esc(O.as_of.read) + ' IST' : ''}</div>
 </main>`;
 const css = `
 :root{--cream:#faf7f2;--cream2:#f3ede3;--cream3:#ede4d6;--sand:#d9cfc0;--ink:#1c1812;--ink2:#3d3629;--ink3:#6b5f4f;--ink4:#9e9080;--terra:#b85c38;--terra-bg:#fdf0ea;--terra-mid:#e07a50;--sage:#5a7a5c;--sage-bg:#eef4ee;--sky:#3b6ea5;--sky-bg:#edf3fb;--red:#c0392b;--red-bg:#fdecea;--serif:'Playfair Display',Georgia,serif;--sans:'Nunito Sans',system-ui,sans-serif;--shadow:0 3px 14px rgba(28,24,18,.05)}
@@ -13584,6 +13584,8 @@ function todo(pages, all) {
       const staff = q.filter((r) => r.staff), agent = q.filter((r) => r.a && !r.staff);
       put('v2_src_app_staff', staff.length, 'App quotes (all dates) saved by staff: role ADMIN / INTERNAL / MANAGER / DATA_MANAGER in Users.', QN, SC, staff.slice(-15).reverse().map((r) => [r.id, r.at, cities(r).join(' · '), who(r.a)]));
       put('v2_src_app_agent', agent.length, 'App quotes (all dates) saved by an agent: any other role in Users.', QN, SC, agent.slice(-15).reverse().map((r) => [r.id, r.at, cities(r).join(' · '), who(r.a)]));
+      const blank = q.filter((r) => !r.a);
+      put('v2_src_app_blank', blank.length, 'App quotes (all dates) with a blank author in Quote_Log (the logged-by column is empty), so neither staff nor agent.', QN, SC, blank.slice(-15).reverse().map((r) => [r.id, r.at, cities(r).join(' · '), '(blank)']));
       const last = agent.slice().sort((x, y) => x.t - y.t).pop();
       put('v2_src_last_agent', { date: last ? dmy(last.t) : null, days: last ? Math.round((today - dayOf(last.t)) / DAY) : null }, 'Newest Quote_Log row saved by a non-staff user, and how many days before today.', QN, SC, agent.slice(-15).reverse().map((r) => [r.id, r.at, cities(r).join(' · '), who(r.a)]));
       if (Array.isArray(src.agents)) {
@@ -13601,7 +13603,7 @@ function todo(pages, all) {
         put('v2_link_blank', { n: src.saved.noQuoteId || 0, of: src.saved.rows || 0 }, 'Saved_Itineraries rows with no quote_id (cannot be joined to anything).', 'Saved_Itineraries (getSavedQuoteStats)');
       }
     } else {
-      ['v2_outcome', 'v2_book_rate', 'v2_booked_value', 'v2_margin', 'v2_src_app_staff', 'v2_src_app_agent', 'v2_src_last_agent', 'v2_src_agents_ever', 'v2_rework'].forEach((k) => need(k, NAQ, 'Needs every Quote_Log row from the DEV backend.', null, 'down'));
+      ['v2_outcome', 'v2_book_rate', 'v2_booked_value', 'v2_margin', 'v2_src_app_staff', 'v2_src_app_agent', 'v2_src_app_blank', 'v2_src_last_agent', 'v2_src_agents_ever', 'v2_rework'].forEach((k) => need(k, NAQ, 'Needs every Quote_Log row from the DEV backend.', null, 'down'));
     }
     if (failed(src.wallet)) ['v2_fees', 'v2_topups'].forEach((k) => need(k, 'the wallet: getWalletSummary did not answer', 'Wallet rows by week.', null, 'down'));
     else {
@@ -13613,7 +13615,8 @@ function todo(pages, all) {
     }
     const BOT = 'the WhatsApp bot\'s logs (Bot_Quote_Log, Bot_Chat_Log, Bot_Health): not in the DEV app\'s backend; CC (#207)';
     [['v2_wa_speed', 'WhatsApp request → PDF time.'], ['v2_src_wa_agent', 'WhatsApp quotes from agents.'], ['v2_src_wa_b2c', 'WhatsApp quotes from clients (B2C).'], ['v2_src_b2c_share', 'Share of WhatsApp quotes that are B2C.'],
-     ['v2_open_leads', 'Bot open leads.'], ['v2_bot_queue', 'Bot message queue.'], ['v2_ai_calls', 'Bot AI calls.'], ['v2_nightly_tests', 'Nightly tests pass / fail / known.']].forEach(([k, f]) => need(k, BOT, f));
+     ['v2_open_leads', 'Bot open leads.'], ['v2_bot_queue', 'Bot message queue.'], ['v2_ai_calls', 'Bot AI calls.']].forEach(([k, f]) => need(k, BOT, f));
+    need('v2_nightly_tests', 'the nightly report (BUILD_REPORT): outside the app; CC (#207)', 'Nightly tests pass / fail / known.');
     need('v2_app_speed', 'a "request received at" time per app quote (a column in Quote_Log or a leads log); CC (#207)', 'Hours from the client\'s request to the first quote saved for it.', 'Quote_Log has only Logged At (when the quote was saved)');
     need('v2_followup', 'a "last contact" date + next step per pending quote; CC (#207)', 'Pending quotes with no contact in 7 days.');
     need('v2_alarms', 'the watcher / Mission Control alarm log; Yasser + CC (#191)', 'Alarms raised this week and whether each was closed.');
@@ -13630,7 +13633,7 @@ function todo(pages, all) {
     const o = M.v2_outcome.v || {}, br = M.v2_book_rate.v || {};
     const ageMax = Math.max.apply(null, ages.map((r) => r[2]).concat([1]));
     const ageBars = ages.map(([k, lab, n], i) => `<div class="v2-bar" data-c6="${k}" data-title="Pending quotes ${esc(lab)} old"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"><span class="v2-bf v2-age${i}" style="width:${Math.round(n / ageMax * 100)}%"></span></span><b>${inr(n)}</b></div>`).join('');
-    const srcs = [['v2_src_app_staff', 'App · staff'], ['v2_src_app_agent', 'App · agent']];
+    const srcs = [['v2_src_app_staff', 'App · staff'], ['v2_src_app_agent', 'App · agent'], ['v2_src_app_blank', 'App · author blank']];
     const sMax = Math.max.apply(null, srcs.map(([k]) => (has(k) ? M[k].v : 0)).concat([1]));
     const srcBars = srcs.map(([k, lab]) => has(k) ? `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"><span class="v2-bf v2-fill" style="width:${Math.round(M[k].v / sMax * 100)}%"></span></span><b>${inr(M[k].v)}</b></div>` : '').join('')
       + [['v2_src_wa_agent', 'WhatsApp · agent'], ['v2_src_wa_b2c', 'WhatsApp · B2C']].map(([k, lab]) => `<div class="v2-bar" data-c6="${k}" data-title="${esc(lab)} quotes"><span class="v2-bl">${esc(lab)}</span><span class="v2-bt"></span><b class="v2-na">data coming</b></div>`).join('');
@@ -13737,7 +13740,6 @@ function todo(pages, all) {
     o.top_cities = cityq.common(6).map((e) => e[0]);
     const mk = q.map((r) => num(r.mkp)).filter((v) => v != null);
     o.avg_markup = pyRound(mean(mk), 1);
-    o.markup_levels = counter(mk).common().map(([k, v]) => [Math.trunc(k) + '%', v, pct(v, mk.length)]);
     const ma = q.filter((r) => (num(r.gt) || 0) > 0).map((r) => num(r.mka) || 0);
     o.markup_per_quote = pyRound(mean(ma));
     o.manual_any_n = q.filter(anyEdit).length; o.manual_any = pct(o.manual_any_n, q.length);
@@ -13746,6 +13748,8 @@ function todo(pages, all) {
     const priced = q.filter((r) => (num(r.gt) || 0) > 0 && (num(r.tp) || 0) > 0 && (num(r.nights) || 0) > 0);
     const pppn = (r) => num(r.gt) / num(r.tp) / num(r.nights);
     o.priced = priced.length; o.pppn = pyRound(median(priced.map(pppn)));
+    const mkP = priced.map((r) => num(r.mkp)).filter((v) => v != null);   // markup levels on the priced quotes = the list behind each tile (audit F1)
+    o.markup_levels = counter(mkP).common().map(([k, v]) => [Math.trunc(k) + '%', v, pct(v, mkP.length)]);
     o.gst_per_quote = pyRound(mean(priced.map((r) => num(r.gst) || 0))); o.gst_quotes_with = priced.filter((r) => (num(r.gst) || 0) > 0).length;
     const band = (rows, key, bands) => bands.map(([lab, lo, hi]) => { const g = rows.filter((r) => lo <= key(r) && key(r) <= hi);
       return [lab, g.length, g.length ? pyRound(median(g.map(pppn))) : null, g.length ? pyRound(mean(g.map((r) => num(r.mkp) || 0)), 1) : null, g]; });
@@ -14024,7 +14028,7 @@ function todo(pages, all) {
       "markup": `<!-- 3. MARGIN AND HAND EDITS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 responsive-grid-2">
           <div class="qq-card-crisp p-4 space-y-2.5 flex flex-col" style="border-top:3px solid #44b08f;background:linear-gradient(180deg,#ECFDF5 0,#fff 110px)">
-            <div class="flex items-start gap-3"><span class="shrink-0 w-9 h-9 rounded-xl grid place-items-center text-base" style="border:1px solid #05966966;box-shadow:0 1px 2px rgba(31,28,25,.06)" aria-hidden="true">💰</span><div><h3 class="font-serif font-bold text-[15px] text-[#1F1C19]">Markup levels used</h3><p class="mt-1 text-[11px] text-[#786F66] leading-relaxed">${F.pc((Q.markup_levels.find((x) => x[0] === '15%') || [0, 0, 0])[2]) + ' of quotes keep the standard 15%.'} Quotes at 0–10% give margin away: check they were meant.</p></div></div>
+            <div class="flex items-start gap-3"><span class="shrink-0 w-9 h-9 rounded-xl grid place-items-center text-base" style="border:1px solid #05966966;box-shadow:0 1px 2px rgba(31,28,25,.06)" aria-hidden="true">💰</span><div><h3 class="font-serif font-bold text-[15px] text-[#1F1C19]">Markup levels used</h3><p class="mt-1 text-[11px] text-[#786F66] leading-relaxed">${F.pc((Q.markup_levels.find((x) => x[0] === '15%') || [0, 0, 0])[2]) + ' of priced quotes keep the standard 15%.'} Quotes at 0–10% give margin away: check they were meant.</p></div></div>
             <div class="grid grid-cols-4 gap-2">${(F.markupRows(Q.markup_levels)).map((r, i) => `<div class="rounded-xl px-2 py-1.5 text-center" style="${'background:' + r.bg}" data-c6="${'q_markup_' + r.lv}" data-title="${'Quotes at ' + r.lv + '% markup'}" data-f="Quotes with ${'Markup % = ' + r.lv + ' and'} a Grand Total, PAX and nights above 0." data-src="${SRC}"><div class="text-lg font-serif font-bold leading-tight" style="${'color:' + r.fg}"${'>' + r.lv + '%<'}/div><div class="text-[12px] font-bold text-[#1F1C19]">${F.n(r.n) + ' quotes'}</div><div class="text-[10px] text-[#786F66]">${F.pc(r.p) + ' of all'}</div></div>`).join("")}<div class="rounded-xl px-2 py-1.5 text-center border border-dashed border-[#059669]">${'<div class="text-lg font-serif font-bold leading-tight text-[#065F46]">' + F.pc(Q.avg_markup) + '</div>'}<div class="text-[12px] font-bold text-[#1F1C19]">average</div>${'<div class="text-[10px] text-[#786F66]">' + F.n(Q.quotes) + ' quotes</div>'}</div></div>
             
             <p class="pt-2 border-t border-[#F5EFE6] text-[10px] text-[#786F66]">Source: Quote_Log · Markup % · green = standard, amber = below, red = none, blue = above</p>
@@ -14051,7 +14055,7 @@ function todo(pages, all) {
           </div>
           `,
       "cities": `<div class="qq-card-crisp p-4 space-y-2.5 flex flex-col" style="border-top:3px solid #ce4d6d;background:linear-gradient(180deg,#FFF1F2 0,#fff 110px)">
-            <div class="flex items-start gap-3"><span class="shrink-0 w-9 h-9 rounded-xl grid place-items-center text-base" style="border:1px solid #BE123C66;box-shadow:0 1px 2px rgba(31,28,25,.06)" aria-hidden="true">📍</span><div><h3 class="font-serif font-bold text-[15px] text-[#1F1C19]">Over budget by city</h3><p class="mt-1 text-[11px] text-[#786F66] leading-relaxed">The 10 most-quoted cities, highest share over budget first · all quotes ${'<strong class="text-[#BE123C]">' + F.pc(F.share(Q.flagged_over, Q.flagged_n)) + '</strong>'} · far above that: check hotels and nights.</p></div></div>
+            <div class="flex items-start gap-3"><span class="shrink-0 w-9 h-9 rounded-xl grid place-items-center text-base" style="border:1px solid #BE123C66;box-shadow:0 1px 2px rgba(31,28,25,.06)" aria-hidden="true">📍</span><div><h3 class="font-serif font-bold text-[15px] text-[#1F1C19]">Over budget by city</h3><p class="mt-1 text-[11px] text-[#786F66] leading-relaxed">The 10 most-quoted cities, highest share over budget first · all ${F.n(Q.flagged_n) + ' priced quotes with a budget flag: '}${'<strong class="text-[#BE123C]">' + F.pc(F.share(Q.flagged_over, Q.flagged_n)) + '</strong>'} · far above that: check hotels and nights.</p></div></div>
             <div class="overflow-x-auto"><table class="w-full text-xs" id="t-city"><thead><tr><th class="py-1 pr-2 text-[10px] font-extrabold uppercase tracking-wider text-[#786F66] text-left">City</th><th class="py-1 pr-2 text-[10px] font-extrabold uppercase tracking-wider text-[#786F66] text-center">With a budget</th><th class="py-1 pr-2 text-[10px] font-extrabold uppercase tracking-wider text-[#786F66] text-center">Over budget</th><th class="py-1 pr-2 text-[10px] font-extrabold uppercase tracking-wider text-[#786F66] text-center">Share over</th></tr></thead><tbody>
               ${(F.cityRows(Q.over_by_city)).map((r, i) => `<tr class="border-t border-[#F5EFE6]" data-c6="${r.key}" data-title="${'Over budget with ' + F.e(r.c)}" data-f="${'Quotes with ' + F.e(r.c) + ' in Cities'} and Budget Flag = OVER (list). Share over = these ÷ ${'quotes with ' + F.e(r.c) + ' that'} have a budget flag (Target, Near, Under or Over)." data-src="${SRC}"><td class="py-1.5 pr-2 font-semibold text-[#1F1C19]"${'>' + F.e(r.c) + '<'}/td><td class="py-1.5 pr-2 text-center font-bold text-[#1F1C19]"${'>' + F.n(r.k) + '<'}/td><td class="py-1.5 pr-2 text-center font-bold text-[#1F1C19]"${'>' + F.n(r.ov) + '<'}/td><td class="py-1.5 pr-2 text-center font-bold text-[#1F1C19]"><span class="inline-flex items-center justify-center gap-2"><span class="inline-block w-36 h-2 rounded-full bg-[#EAE3D9] overflow-hidden"><span class="block h-full rounded-full" style="${'width:' + r.w + '%;background:#d56580'}"></span></span><span class="w-12 text-right"${'>' + F.pc(r.sh) + '<'}/span></span></td></tr>`).join("")}
             </tbody></table></div>
@@ -14442,7 +14446,7 @@ function todo(pages, all) {
     const swiss = gapCities.length && gapCities.every((c) => SWISS.has(c)) ? ' Swiss' : '';
     const rows = TR.map(([key, rt, n, noleg, notr], i) => {
       const cs = rt.split(' · '), bad = new Set(notr), ok = !noleg.length && !notr.length;
-      const name = cs.map((c) => (bad.has(c) ? `<span class="rb-gap" title="${F.e(c)}: no transfer rows">${F.e(c)}</span>` : F.e(c))).join(' <span class="rb-ar">→</span> ');
+      const name = cs.map((c) => (bad.has(c) ? `<span class="rb-gap" title="${F.e(c)}: no rows in the Transfers tab">${F.e(c)}</span>` : F.e(c))).join(' <span class="rb-ar">→</span> ');
       const badge = ok ? '<span class="rb-b ok">✓ Ready</span>'
         : `<span class="rb-b bad" title="${[notr.length ? 'no transfer rows in ' + notr.join(', ') : '', noleg.length ? 'no train / ferry: ' + noleg.join(', ') : ''].filter(Boolean).join(' · ')}">` +
           (notr.length ? `${notr.length} ${notr.length > 1 ? 'cities' : 'city'} no transfers` : `${noleg.length} ${noleg.length > 1 ? 'legs' : 'leg'} no train`) + '</span>';
@@ -14455,7 +14459,7 @@ function todo(pages, all) {
         <p class="business-panel-intro">Top ${k} trips (2+ cities, all quotes) checked against the masters.</p>
         <div class="rb-sum">
           <div class="rb-t ok"><b>${fullQ}</b><span>ready to price<small>quotes · ${full.length} of ${k} routes</small></span></div>
-          <div class="rb-t bad" title="no transfer rows in ${gapCities.join(', ')}"><b>${gapQ}</b><span>miss transfers<small>in ${gapCities.length}${swiss} cities</small></span></div>
+          <div class="rb-t bad" title="no transfer rows in ${gapCities.join(', ')}"><b>${gapQ}</b><span>miss transfers (Transfers tab)<small>in ${gapCities.length}${swiss} cities</small></span></div>
           <div class="rb-t tl"><b>${TR.filter((r) => !r[3].length).length}/${k}</b><span>train on every leg<small>of the ${k} routes</small></span></div>
           <div class="rb-split" title="${fullQ} quotes on ready routes · ${gapQ} on routes with a city without transfer rows"><span class="rb-split-l">${totQ} quotes on these ${k} routes</span><span class="rb-bar2"><i class="ok" style="width:${p1}%"></i><i class="bad" style="width:${p2}%"></i></span><span class="rb-split-r">${totQ ? Math.round(100 * fullQ / totQ) : 0}% ready</span></div>
         </div>
@@ -14470,8 +14474,8 @@ function todo(pages, all) {
       `<span class="lg-route"><b>${F.e(a)}</b><span class="lg-arrow" aria-hidden="true">⟶</span><b>${F.e(b)}</b></span>` +
       `<span class="lg-bar"><i style="width:${Math.round(100 * n / top)}%"></i></span><span class="lg-n">${n}<small>×</small></span></div>`).join('') + '</div>';
     const withT = TL.filter((r) => r[3]).length, names = TL.slice(0, 2).map((r) => r[0] + ' → ' + r[1]).join(', ') + (TL.length > 2 ? ' …' : '');
-    const ok = `<div class="lg-ok"><span class="lg-okicon" aria-hidden="true">✓</span><div><b>${withT} of the ${TL.length} most-quoted legs have a train</b><span>${F.e(names)} · ${F.n(C.legs_with_train)} of ${F.n(C.legs_total)} quoted legs covered</span></div></div>`;
-    return { list: list, ok: ok, none: `${F.n(C.leg_pairs - C.leg_pairs_with_train)} of ${F.n(C.leg_pairs)} legs have none` };
+    const ok = `<div class="lg-ok"><span class="lg-okicon" aria-hidden="true">✓</span><div><b>${withT} of the ${TL.length} most-quoted city pairs have a train</b><span>${F.e(names)} · every leg of every quote: ${F.n(C.legs_with_train)} of ${F.n(C.legs_total)} covered</span></div></div>`;
+    return { list: list, ok: ok, none: `${F.n(C.leg_pairs - C.leg_pairs_with_train)} of ${F.n(C.leg_pairs)} different city pairs have none` };
   };
   F.starRows = (C) => { const mx = Math.max.apply(null, (C.star_price || []).map((r) => r[4]).concat([1]));
     return (C.star_price || []).map(([c, a, b, e, h]) => ({ c: c, key: 'd_hotels_' + String(c).toLowerCase(), cells: [pill('s3', F.inr(a)), pill('s4', F.inr(b)), pill('s5', F.inr(e)), mbar(h, mx, F.n(h))].map((x) => `<td>${x}</td>`).join('') })); };
@@ -14516,7 +14520,7 @@ function todo(pages, all) {
       "catalogue": `<article class="business-panel c-blue" aria-labelledby="depth-title">
         <h3 id="depth-title"><span class="picon" aria-hidden="true">📍</span>Catalogue in the 12 cities quoted most</h3>
         <p class="business-panel-intro">What we can sell where clients ask most · red 0 = priced by hand.</p>
-        <div class="business-table-wrap"><table class="business-table cat-table"><thead><tr><th>City</th><th>Hotels</th><th title="Activities">Tours</th><th title="Train, ferry and bus routes from or to the city">Trains</th><th title="Transfer rows">Transfers</th></tr></thead><tbody>
+        <div class="business-table-wrap"><table class="business-table cat-table"><thead><tr><th>City</th><th>Hotels</th><th title="Activities">Tours</th><th title="Train, ferry and bus routes from or to the city">Trains</th><th title="Rows in the Transfers tab; the engine prices from Transfers_v3 (see the city's readiness list)">Transfers tab</th></tr></thead><tbody>
               ${(F.catRows(C)).map((r, i) => `<tr data-c6="${r.key}" data-title="${'Hotels in ' + F.e(r.c)}" data-f="Hotels LIVE backup rows with ${'City = ' + F.e(r.c) + ','} best stars first. Activities / train routes / transfer rows in the row = Sightseeing, Trains (${'from or to ' + F.e(r.c) + ')'} and Transfers masters." data-src="${D.SRCM}">${'<td>' + F.e(r.c) + '</td>'}${r.cells}</tr>`).join("")}
         </tbody></table></div>
         <p class="business-note">Source: Hotels, Sightseeing, Trains, Transfers masters · Quote_Log.</p>
@@ -14757,7 +14761,7 @@ function todo(pages, all) {
           return `<div class="v2-tiles v2-t3 v2-tsum"><div class="v2-tile ${ok('Australia') === rd('Australia').length ? 'v2-ok' : 'v2-warn'}"><b>${inr(ok('Australia'))} <small>of ${inr(rd('Australia').length)}</small></b><span>AU cities ready</span></div>` +
             `<div class="v2-tile ${ok('New Zealand') === rd('New Zealand').length ? 'v2-ok' : 'v2-bad'}"><b>${inr(ok('New Zealand'))} <small>of ${inr(rd('New Zealand').length)}</small></b><span>NZ cities ready</span></div>` +
             `<div class="v2-tile ${nox ? 'v2-bad' : 'v2-ok'}"><b>${inr(nox)} <small>of ${inr(V.v2_ready.length)}</small></b><span>cities with no transfer row</span></div></div>`; })() +
-        `<div class="v2-tw v2-fillt"><table class="v2-ready"><thead><tr><th>Country</th><th>City</th><th>Hotels</th><th>Tours</th><th>Transfers</th><th>Trains</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`,
+        `<div class="v2-tw v2-fillt"><table class="v2-ready"><thead><tr><th>Country</th><th>City</th><th>Hotels</th><th>Tours</th><th>Transfers tab</th><th>Trains</th><th>Missing</th></tr></thead><tbody>${rows}</tbody></table></div>`,
         opts.srcReady) +
       card('v2-c-red v2-filltodo', '📋', 'To-do: red numbers on this page', 'Each red number here, who should fix it, and the card item or issue that fixes it.', todoSum(['d']) + todo(['d'], false), TODO_NOTE) + `</div>`;
     return screen('v2d3', 'v2-h-data', 'Data quality', w3) + screen('v2d4', 'v2-h-ready', 'Launch readiness', w4);
