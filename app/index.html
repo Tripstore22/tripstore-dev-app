@@ -7162,6 +7162,7 @@ function tsSdClosePicker_(apply) {
     if (!apply || !pick) { tsSdSyncToggle_(); return; }          // Cancel: back to what it was
     if (area && tsSdWanted && tsSdWanted.carType) {
         tsSdWanted = Object.assign({}, tsSdWanted, { byArea: Object.assign({}, tsSdWanted.byArea || {}, { [area]: pick.value }) });   // only this car
+        delete tsSdWanted.auto;   // owner test 26 Nov 19:12 (picked Big SUV, got Honda ZR-V): a car type the rep chose by hand is never reset to the party-size suggestion on the next build
         if (_edit) tsSdWanted.edits = Object.assign({}, tsSdWanted.edits || {}, { [area]: _edit });   // NZ-SD bug 3: its new pick-up / drop-off date and place
     } else {
         // every car (per-car types replaced); late arrival kept as it was, ON when self-drive is switched on (owner 27 Oct default)
